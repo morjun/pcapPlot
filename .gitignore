@@ -1,2 +1,15 @@
 /interlop.pcap
 /interlop.pcapng
+delayOnly.pcapng
+delayRate.pcapng
+interop.pcap
+interop.pcapng
+lossDelay.pcapng
+lossOnly.pcapng
+lossRate.pcapng
+rateOnly.pcapng
+samplequic.pcapng
+samplequicNoloss.pcapng
+samplequic.csv
+samplequicNoloss.csv
+samplequicThroughput.csv

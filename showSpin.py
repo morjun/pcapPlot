@@ -3,46 +3,97 @@ import pyshark
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import statistics
+
+import argparse
 
 from matplotlib import ticker
 
 def main():
+    parser = argparse.ArgumentParser(description='Show spin bit')
+    parser.add_argument('file', metavar='file', type=str, nargs=1)
+    args = parser.parse_args()
+    prevSpin = 0
+    prevTime = 0
+
     times = []
     lostTimes = []
     spins = []
+    rtts = []
 
-    cap = pyshark.FileCapture("interlop.pcapng")
+    ports = {"interop" : 4433, "samplequic" : 4567}
+    port = 0
+    if args.file[0] not in ports:
+        port = 4567
+    else:
+        port = ports[args.file[0]]
+
+    cap = pyshark.FileCapture(f"{args.file[0]}.pcapng")
     initialTime = cap[0].sniff_time.timestamp()
     for packet in cap:
-        if int(packet.number) > 2000:
-             break
+        # if int(packet.number) > 100:
+        #     # print("out")
+        #     break
         if hasattr(packet, 'icmp') and packet.icmp.type == '3':
-            time = packet.sniff_time.timestamp() - initialTime
-            lostTimes.append(float(time))
-        elif hasattr(packet, 'quic') and hasattr(packet.quic, 'spin_bit'):
-            if hasattr(packet, 'udp'):
-                if packet.udp.dstport == '4433':
-                    time = packet.sniff_time.timestamp() - initialTime
-                    spin = packet.quic.spin_bit
-                    times.append(float(time))
-                    spins.append(int(spin))
-            else:
-                print(packet)
+            # print("drop")
+            if packet.icmp.udp_port == str(port):
+                time = packet.sniff_time.timestamp() - initialTime
+                lostTimes.append(float(time))
+        elif hasattr(packet, 'quic'):
+            # print("quic short header")
+            if (initialTime == 0):
+                initialTime = packet.sniff_time.timestamp()
+            if hasattr(packet.quic, 'spin_bit'):
+                if hasattr(packet, 'udp'):
+                    if packet.udp.srcport == str(port):
+                        # print("server -> client")
+                        time = packet.sniff_time.timestamp() - initialTime
+                        spin = packet.quic.spin_bit
+                        if prevSpin != spin:
+                            if (prevTime != 0):
+                                rtt = time - prevTime
+                                rtts.append(float(rtt))
+                            prevTime = time
+                        times.append(float(time))
+                        spins.append(int(spin))
+                        prevSpin = spin
+                else:
+                    print(packet)
+
+    print(times, spins, lostTimes)
+
+    print(statistics.mean(rtts))
 
     df = pd.DataFrame({'time': times, 'spin': spins})
+    throughputFrame = pd.read_csv(f"{args.file[0]}.csv")
+    print(throughputFrame)
 
+    print(throughputFrame['All Packets'], throughputFrame['Interval start'], throughputFrame['TCP Errors'])
     fig, ax = plt.subplots(sharex=True, sharey=True)
     fig.set_size_inches(15, 3)
 
     ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%0.9f'))
+    ax.set_ylabel('Spin bit')
+    ax.set_yticks([1.0, 0.0])
+    ax.set_ylim([0, 2])
     ax.plot(df.time,df.spin, markersize=1,)
 
-    ax.plot(lostTimes, np.ones(len(lostTimes)), 'r*', markersize=10, label='drop')
-    ax.legend()
+    drop = ax.plot(lostTimes, np.ones(len(lostTimes)), 'r*', markersize=10, label='drop')
+
+    ax2 = ax.twinx()
+    ax2.set_ylabel('Throughput (Mbps)')
+    throughputFrame['All Packets'] = [x*8/ 1000 for x in throughputFrame['All Packets']]
+
+    ax2.set_ylim([0, 10000])
+    ax2.yaxis.set_major_locator(ticker.AutoLocator())
+
+    throughput = ax2.plot(throughputFrame['Interval start'], throughputFrame['All Packets'], 'g', label='throughput')
+
+    ax.legend(loc='upper left')
+    ax2.legend(loc='upper right')
 
     plt.xticks(times, rotation = 45)
-    plt.yticks([1.0, 0.0])
-    plt.xlim(1, 5.0)
+    # plt.xlim(0, 20.0)
 
     plt.show()
 
