@@ -21,6 +21,7 @@ def main():
 
     times = []
     lostTimes = []
+    losses = []
     spins = []
     rtts = []
 
@@ -35,16 +36,16 @@ def main():
     initialTime = 0
 
     for packet in cap:
-        if int(packet.number) > 100:
-            # print("out")
-            break
+        # if int(packet.number) > 100:
+        #     # print("out")
+        #     break
 
         if hasattr(packet, 'quic'):
             if (initialTime == 0): # int
                 initialTime = packet.sniff_time.timestamp()
             if hasattr(packet.quic, 'spin_bit'):
                 if hasattr(packet, 'udp'):
-                    if packet.udp.srcport == str(port):
+                    if packet.udp.srcport == str(port): # 서버가 전송한 패킷만
                         time = packet.sniff_time.timestamp() - initialTime
                         spin = packet.quic.spin_bit
                         if prevSpin != spin:
@@ -58,7 +59,6 @@ def main():
                 else:
                     print(packet)
 
-    print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}")
 
     df = pd.DataFrame({'time': times, 'spin': spins})
     throughputFrame = pd.read_csv(f"{args.file[0]}.csv")
@@ -78,19 +78,20 @@ def main():
                 print(logTime, lossCount)
                 if (lossCount > 0):
                     lostTimes.append(logTime)
+                    losses.append(lossCount)
 
     print(lostTimes)
-
     fig, ax = plt.subplots(sharex=True, sharey=True)
     fig.set_size_inches(15, 3)
 
     ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%0.9f'))
-    ax.set_ylabel('Spin bit')
-    ax.set_yticks([1.0, 0.0])
-    ax.set_ylim([0, 2])
 
     ax.plot(df.time,df.spin, markersize=1,)
-    drop = ax.plot(lostTimes, np.ones(len(lostTimes)), 'r*', markersize=10, label='lost')
+    drop = ax.plot(lostTimes, losses, 'r*', markersize=10, label='lost')
+
+    ax.set_ylabel('Spin bit & # Lost')
+    ax.set_yticks([1.0, 0.0])
+    ax.set_ylim([0, max(losses) * 1.1])
 
     ax2 = ax.twinx()
     ax2.set_ylabel('Throughput (Mbps)')
@@ -104,7 +105,12 @@ def main():
     ax.legend(loc='upper left')
     ax2.legend(loc='upper right')
 
+    print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}")
+    print(f"평균 throughput: {statistics.mean(throughputFrame['All Packets'])}Mbps")
+    print(f"Lost 개수: {sum(losses)}")
+
     plt.xticks(times, rotation = 45)
+    # plt.xticks(lostTimes, rotation = 45)
     # plt.xlim(0, 20.0)
     plt.show()
 
