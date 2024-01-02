@@ -32,14 +32,15 @@ def main():
         port = ports[args.file[0]]
 
     cap = pyshark.FileCapture(f"{args.file[0]}.pcapng")
-    initialTime = cap[0].sniff_time.timestamp()
+    initialTime = 0
+
     for packet in cap:
         if int(packet.number) > 100:
             # print("out")
             break
 
         if hasattr(packet, 'quic'):
-            if (initialTime == 0):
+            if (initialTime == 0): # int
                 initialTime = packet.sniff_time.timestamp()
             if hasattr(packet.quic, 'spin_bit'):
                 if hasattr(packet, 'udp'):
