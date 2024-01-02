@@ -38,7 +38,7 @@ def main():
             # print("out")
             break
 
-        elif hasattr(packet, 'quic'):
+        if hasattr(packet, 'quic'):
             if (initialTime == 0):
                 initialTime = packet.sniff_time.timestamp()
             if hasattr(packet.quic, 'spin_bit'):
@@ -66,15 +66,19 @@ def main():
 
     with open(f"{args.file[0]}.log") as f:
         lines = f.readlines()
-        timeString = str(lines[0].split(']')[2].replace('[', ''))
-        initialLogtime = datetime.strptime(timeString, '%H:%M:%S.%f')
+        initialLogtime = 0
         for line in lines:
-            if "Lost: " in line and "[conn]" in line:
-                logTime = (datetime.strptime(line.split(']')[2].replace('[', ''), '%H:%M:%S.%f') - initialLogtime).total_seconds()
+            timeString = str(line.split(']')[2].replace('[', ''))
+            if "[S][RX][0] LH Ver:" in line and "Type:I" in line:
+                initialLogtime = datetime.strptime(timeString, '%H:%M:%S.%f')
+            elif "Lost: " in line and "[conn]" in line:
+                logTime = (datetime.strptime(timeString, '%H:%M:%S.%f') - initialLogtime).total_seconds()
                 lossCount = int(line.split('Lost: ')[1].split(' ')[0])
+                print(logTime, lossCount)
                 if (lossCount > 0):
                     lostTimes.append(logTime)
 
+    print(lostTimes)
 
     fig, ax = plt.subplots(sharex=True, sharey=True)
     fig.set_size_inches(15, 3)
@@ -85,7 +89,7 @@ def main():
     ax.set_ylim([0, 2])
 
     ax.plot(df.time,df.spin, markersize=1,)
-    drop = ax.plot(lostTimes, np.ones(len(lostTimes)), 'r*', markersize=10, label='drop')
+    drop = ax.plot(lostTimes, np.ones(len(lostTimes)), 'r*', markersize=10, label='lost')
 
     ax2 = ax.twinx()
     ax2.set_ylabel('Throughput (Mbps)')
