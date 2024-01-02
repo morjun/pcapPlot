@@ -6,6 +6,7 @@ import pandas as pd
 import statistics
 
 import argparse
+from datetime import datetime
 
 from matplotlib import ticker
 
@@ -33,13 +34,9 @@ def main():
     cap = pyshark.FileCapture(f"{args.file[0]}.pcapng")
     initialTime = cap[0].sniff_time.timestamp()
     for packet in cap:
-        # if int(packet.number) > 100:
-        #     # print("out")
-        #     break
-        if hasattr(packet, 'icmp') and packet.icmp.type == '3':
-            if packet.icmp.udp_port == str(port):
-                time = packet.sniff_time.timestamp() - initialTime
-                lostTimes.append(float(time)) # ICMP -> Lost로 간주?
+        if int(packet.number) > 100:
+            # print("out")
+            break
 
         elif hasattr(packet, 'quic'):
             if (initialTime == 0):
@@ -60,13 +57,24 @@ def main():
                 else:
                     print(packet)
 
-    print(times, spins, lostTimes)
     print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}")
-    df = pd.DataFrame({'time': times, 'spin': spins})
 
+    df = pd.DataFrame({'time': times, 'spin': spins})
     throughputFrame = pd.read_csv(f"{args.file[0]}.csv")
     print(throughputFrame)
     print(throughputFrame['All Packets'], throughputFrame['Interval start'], throughputFrame['TCP Errors'])
+
+    with open(f"{args.file[0]}.log") as f:
+        lines = f.readlines()
+        timeString = str(lines[0].split(']')[2].replace('[', ''))
+        initialLogtime = datetime.strptime(timeString, '%H:%M:%S.%f')
+        for line in lines:
+            if "Lost: " in line and "[conn]" in line:
+                logTime = (datetime.strptime(line.split(']')[2].replace('[', ''), '%H:%M:%S.%f') - initialLogtime).total_seconds()
+                lossCount = int(line.split('Lost: ')[1].split(' ')[0])
+                if (lossCount > 0):
+                    lostTimes.append(logTime)
+
 
     fig, ax = plt.subplots(sharex=True, sharey=True)
     fig.set_size_inches(15, 3)
@@ -77,13 +85,13 @@ def main():
     ax.set_ylim([0, 2])
 
     ax.plot(df.time,df.spin, markersize=1,)
-    drop = ax.plot(lostTimes, np.ones(len(lostTimes)), 'r*', markersize=10, label='drop') # ICMP 기준
+    drop = ax.plot(lostTimes, np.ones(len(lostTimes)), 'r*', markersize=10, label='drop')
 
     ax2 = ax.twinx()
     ax2.set_ylabel('Throughput (Mbps)')
-    throughputFrame['All Packets'] = [x*8/ 1000 for x in throughputFrame['All Packets']] # KBps -> Mbps
+    throughputFrame['All Packets'] = [(x*8/ 1000000)/throughputFrame['Interval start'][1] for x in throughputFrame['All Packets']] # Bp100ms -> Mbps
 
-    ax2.set_ylim([0, 10000])
+    ax2.set_ylim([0, max(throughputFrame['All Packets']) * 1.1])
     ax2.yaxis.set_major_locator(ticker.AutoLocator())
 
     throughput = ax2.plot(throughputFrame['Interval start'], throughputFrame['All Packets'], 'g', label='throughput')
@@ -93,7 +101,6 @@ def main():
 
     plt.xticks(times, rotation = 45)
     # plt.xlim(0, 20.0)
-
     plt.show()
 
 
