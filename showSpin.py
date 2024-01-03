@@ -13,8 +13,11 @@ import matplotlib
 import pyqtgraph as pg
 from PyQt5 import QtWidgets
 
+plotItem1 = None
+plotItem2 = None
+plotItem3 = None
 
-def setData(args):
+def loadData(args):
     times = np.array([], dtype=float)
     lostTimes = np.array([], dtype=float)
     losses = np.array([], dtype=int)
@@ -52,7 +55,6 @@ def setData(args):
                     prevSpin = spin
                     if (int(packet.number) % 1000) == 0:
                         print(f"{packet.number} packets processed")
-                        break
 
     spinFrame = pd.DataFrame({"time": times, "spin": spins})
     throughputFrame = pd.read_csv(f"{args.file[0]}.csv")
@@ -97,73 +99,69 @@ def setData(args):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, args):
         super().__init__()
-        self.plotGraph = pg.PlotWidget()
-        self.setCentralWidget(self.plotGraph)
-        self.spinFrame, self.throughputFrame, self.lostFrame = setData(args)
+        self.spinFrame, self.throughputFrame, self.lostFrame = loadData(args)
         self.drawGraph()
 
     def drawGraph(self):
-        self.plotGraph.clear()
-        pgLayout = self.plotGraph.plotItem.layout
-        # plotItem1 = self.plotGraph.plotItem
-        # plotItem1.setLabel("left", "Spin bit", units="bit")
-
-        # plotItem2 = pg.ViewBox()
-        
-        # plotItem1.showAxis("right")
-        # plotItem1.scene().addItem(plotItem2)
-        # plotItem1.getAxis("right").linkToView(plotItem2)
-        # plotItem1.getAxis("right").setLabel("Throughput", units="Mbps")
-
-        # plotItem3 = pg.ViewBox()
-        # axis3 = pg.AxisItem("left")
-        # plotItem1.layout.addItem(axis3, 2, 1)
-        # plotItem1.scene().addItem(plotItem3)
-        # axis3.linkToView(plotItem3)
-        # axis3.setZValue(-10000)
-        # axis3.setLabel("Lost", units="개")
-        # def updateViews():
-        #     ## view has resized; update auxiliary views to match
-        #     plotItem2.setGeometry(plotItem1.vb.sceneBoundingRect())
-        #     plotItem3.setGeometry(plotItem1.vb.sceneBoundingRect())
-        #     ## need to re-update linked axes since this was called
-        #     ## incorrectly while views had different shapes.
-        #     ## (probably this should be handled in ViewBox.resizeEvent)
-        #     plotItem2.linkedViewChanged(plotItem1.vb, plotItem2.XAxis)
-        #     plotItem3.linkedViewChanged(plotItem1.vb, plotItem3.XAxis)
-        
-        # updateViews()
-        # plotItem1.vb.sigResized.connect(updateViews)
-
-        self.plotGraph.plot(self.spinFrame["time"], self.spinFrame["spin"], pen="b")
-        # plotItem1.plot(self.spinFrame["time"], self.spinFrame["spin"], pen="b")
-        self.plotGraph.plot(self.lostFrame["time"], self.lostFrame["loss"], pen="r")
-        # plotItem3.addItem(pg.PlotCurveItem(self.lostFrame["time"], self.lostFrame["loss"], pen="r"))
-        self.plotGraph.plot(
-            self.throughputFrame["Interval start"],
-            self.throughputFrame["All Packets"],
-            pen="g",
-        )
-
-        # plotItem2.addItem(pg.PlotCurveItem(
-        #     self.throughputFrame["Interval start"],
-        #     self.throughputFrame["All Packets"],
-        #     pen="g",)
-        # )
-
-        self.plotGraph.showGrid(x=True, y=True)
-        self.plotGraph.setLabel("left", "Spin bit", units="bit")
-        self.plotGraph.setLabel("bottom", "Time", units="s")
-        self.plotGraph.setLabel("right", "Throughput", units="Mbps")
-        self.plotGraph.setXRange(0, self.spinFrame["time"].max())
-        self.plotGraph.setYRange(0, 1.1)
-    
+        global plotItem1, plotItem2, plotItem3
+        self.plotGraph = pg.PlotWidget()
+        self.setCentralWidget(self.plotGraph)
         self.plotGraph.show()
+        self.plotGraph.clear()
+        self.plotGraph.showGrid(x=True, y=True)
+        self.plotGraph.setBackground("w")
+        allTimes = np.append(self.spinFrame["time"], self.lostFrame["time"])
+        # self.plotGraph.getAxis("bottom").setTicks([[(time, f"{time:.6f}") for time in allTimes]])
+        # self.plotGraph.getAxis("bottom").setticks()
+
+        pgLayout = self.plotGraph.plotItem.layout
+        plotItem1 = self.plotGraph.plotItem
+        plotItem1.setLabel("left", "Spin bit", units="bit개")
+        plotItem1.setLabel("bottom", "Time", units="s")
+
+        plotItem2 = pg.ViewBox()
+        plotItem1.showAxis("right")
+        plotItem1.scene().addItem(plotItem2)
+        plotItem1.getAxis("right").linkToView(plotItem2)
+        plotItem2.setXLink(plotItem1)
+        plotItem1.getAxis("right").setLabel("Throughput", units="Mbps")
+
+        plotItem3 = pg.ViewBox()
+        axis3 = pg.AxisItem("left")
+        plotItem1.layout.addItem(axis3, 2, 1)
+        plotItem1.scene().addItem(plotItem3)
+        axis3.linkToView(plotItem3)
+        axis3.setZValue(-10000)
+        axis3.setLabel("Lost", units="개")
+        plotItem3.setXLink(plotItem1)
+        plotItem3.setYLink(plotItem1)
+
+        def updateViews():
+            global plotItem1, plotItem2, plotItem3
+            ## view has resized; update auxiliary views to match
+            plotItem2.setGeometry(plotItem1.vb.sceneBoundingRect())
+            plotItem3.setGeometry(plotItem1.vb.sceneBoundingRect())
+            ## need to re-update linked axes since this was called
+            ## incorrectly while views had different shapes.
+            ## (probably this should be handled in ViewBox.resizeEvent)
+            plotItem2.linkedViewChanged(plotItem1.vb, plotItem2.XAxis)
+            plotItem3.linkedViewChanged(plotItem1.vb, plotItem3.XAxis)
+        
+        updateViews()
+        plotItem1.vb.sigResized.connect(updateViews)
+
+        plotItem1.plot(self.spinFrame["time"].values.flatten(), self.spinFrame["spin"].values.flatten(), pen="b")
+        plotItem2.addItem(pg.PlotCurveItem(
+            self.throughputFrame["Interval start"].values.flatten(),
+            self.throughputFrame["All Packets"].values.flatten(),
+            pen="g",)
+        )
+        plotItem3.addItem(pg.ScatterPlotItem(self.lostFrame["time"].values.flatten(), self.lostFrame["loss"].values.flatten(), pen="r", symbol="o", symbolPen = "r", symbolBrush = "r", symbolSize = 10))
 
 
 class PyPlotGraph:
     def __init__(self, args):
-        self.spinFrame, self.throughputFrame, self.lostFrame = setData(args)
+        self.spinFrame, self.throughputFrame, self.lostFrame = loadData(args)
 
     # 파일명.csv (throughput 기록), 파일명.pcapng (wireshark 패킷트레이스), 파일명.log(msquic log, loss 추적용) 필요
     def pyplotGraph(self):
