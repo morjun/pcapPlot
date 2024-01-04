@@ -15,9 +15,9 @@ from PyQt5 import QtWidgets
 
 
 plotItem1 = None
-plotItem2 = None
-plotItem3 = None
-plotItem4 = None
+view2 = None
+view3 = None
+view4 = None
 
 def loadData(args):
     times = np.array([], dtype=float)
@@ -61,7 +61,6 @@ def loadData(args):
                     prevSpin = spin
                     if (int(packet.number) % 1000) == 0:
                         print(f"{packet.number} packets processed")
-                        break
     
     print(f"load time: {datetime.now() - loadTime}")
     spinFrame = pd.DataFrame({"time": times, "spin": spins})
@@ -93,7 +92,8 @@ def loadData(args):
                 cwndTimes = np.append(cwndTimes, float(logTime))
 
     throughputFrame["All Packets"] = [
-        (x * 8 / 1000000) / throughputFrame["Interval start"][1]
+        # (x * 8 / 1000000) / throughputFrame["Interval start"][1]
+        (x * 8) / throughputFrame["Interval start"][1]
         for x in throughputFrame["All Packets"]
     ]  # Bp100ms -> Mbps
     lostFrame = pd.DataFrame({"time": lostTimes, "loss": losses})
@@ -114,7 +114,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.drawGraph()
 
     def drawGraph(self):
-        global plotItem1, plotItem2, plotItem3, plotItem4
+        global plotItem1, view2, view3, view4
         self.plotGraph = pg.PlotWidget()
         self.setCentralWidget(self.plotGraph)
         self.plotGraph.show()
@@ -132,60 +132,60 @@ class MainWindow(QtWidgets.QMainWindow):
         plotItem1.setLabel("left", "Spin bit", units="bit")
         plotItem1.setLabel("bottom", "Time", units="s")
 
-        plotItem2 = pg.ViewBox()
+        view2 = pg.ViewBox()
         axis2 = pg.AxisItem("right")
-        plotItem1.layout.addItem(axis2, 2, 3, 1, 1)
-        plotItem1.scene().addItem(plotItem2)
-        plotItem2.setXLink(plotItem1)
-        axis2.setLabel("Throughput", units="Mbps")
-        axis2.linkToView(plotItem2)
+        plotItem1.layout.addItem(axis2, 2, 2, 1, 1)
+        plotItem1.scene().addItem(view2)
+        view2.setXLink(plotItem1)
+        axis2.setLabel("Throughput", units="bps")
+        axis2.linkToView(view2)
         # plotItem1.showAxis("right")
         # plotItem1.getAxis("right").linkToView(plotItem2)
         # plotItem1.getAxis("right").setLabel("Throughput", units="Mbps")
 
-        plotItem3 = pg.ViewBox()
+        view3 = pg.ViewBox()
         axis3 = pg.AxisItem("left")
-        plotItem1.layout.addItem(axis3, 2, 2, 1, 1)
-        plotItem1.scene().addItem(plotItem3)
-        axis3.linkToView(plotItem3)
+        plotItem1.layout.addItem(axis3, 2, 1, 1, 1)
+        plotItem1.scene().addItem(view3)
+        axis3.linkToView(view3)
         axis3.setZValue(-10000)
         axis3.setLabel("Lost", units="개")
-        plotItem3.setXLink(plotItem1)
-        plotItem3.setYLink(plotItem1)
+        view3.setXLink(plotItem1)
+        view3.setYLink(plotItem1)
 
-        plotItem4 = pg.ViewBox()
+        view4 = pg.ViewBox()
         axis4 = pg.AxisItem("right")
-        plotItem1.layout.addItem(axis4, 2, 4, 1, 1)
-        plotItem1.scene().addItem(plotItem4)
-        axis4.linkToView(plotItem4)
-        # axis4.setZValue(-10000)
+        plotItem1.layout.addItem(axis4, 2, 3, 1, 1)
+        plotItem1.scene().addItem(view4)
+        axis4.linkToView(view4)
+        axis4.setZValue(-10000)
         axis4.setLabel("CWnd", units="Bytes")
-        # axis4.setZValue(-10000)
+        view4.setXLink(plotItem1)
         
         def updateViews():
-            global plotItem1, plotItem2, plotItem3, plotItem4
+            global plotItem1, view2, view3, view4
             ## view has resized; update auxiliary views to match
-            plotItem2.setGeometry(plotItem1.vb.sceneBoundingRect())
-            plotItem3.setGeometry(plotItem1.vb.sceneBoundingRect())
-            plotItem4.setGeometry(plotItem1.vb.sceneBoundingRect())
+            view2.setGeometry(plotItem1.vb.sceneBoundingRect())
+            view3.setGeometry(plotItem1.vb.sceneBoundingRect())
+            view4.setGeometry(plotItem1.vb.sceneBoundingRect())
             ## need to re-update linked axes since this was called
             ## incorrectly while views had different shapes.
             ## (probably this should be handled in ViewBox.resizeEvent)
-            plotItem2.linkedViewChanged(plotItem1.vb, plotItem2.XAxis)
-            plotItem3.linkedViewChanged(plotItem1.vb, plotItem3.XAxis)
-            plotItem4.linkedViewChanged(plotItem1.vb, plotItem4.XAxis)
+            view2.linkedViewChanged(plotItem1.vb, view2.XAxis)
+            view3.linkedViewChanged(plotItem1.vb, view3.XAxis)
+            view4.linkedViewChanged(plotItem1.vb, view4.XAxis)
         
         updateViews()
         plotItem1.vb.sigResized.connect(updateViews)
 
         plotItem1.plot(self.spinFrame["time"].values.flatten(), self.spinFrame["spin"].values.flatten(), pen="b")
-        plotItem2.addItem(pg.PlotCurveItem(
+        view2.addItem(pg.PlotCurveItem(
             self.throughputFrame["Interval start"].values.flatten(),
             self.throughputFrame["All Packets"].values.flatten(),
             pen="g",)
         )
-        plotItem3.addItem(pg.ScatterPlotItem(self.lostFrame["time"].values.flatten(), self.lostFrame["loss"].values.flatten(), pen="r", symbol="o", symbolPen = "r", symbolBrush = "r", symbolSize = 10))
-        plotItem4.addItem(pg.PlotCurveItem(
+        view3.addItem(pg.ScatterPlotItem(self.lostFrame["time"].values.flatten(), self.lostFrame["loss"].values.flatten(), pen="r", symbol="o", symbolPen = "r", symbolBrush = "r", symbolSize = 10))
+        view4.addItem(pg.PlotCurveItem(
             self.cwndFrame["time"].values.flatten(),
             self.cwndFrame["cwnd"].values.flatten(),
             pen="m",)
