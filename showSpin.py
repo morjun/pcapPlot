@@ -100,13 +100,13 @@ def loadData(args):
     cwndFrame = pd.DataFrame({"time" : cwndTimes, "cwnd": cwnds})
 
     print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}")
-    print(f"평균 throughput: {statistics.mean(throughputFrame['All Packets'])}Mbps")
+    print(f"평균 throughput: {statistics.mean(throughputFrame['All Packets'])/1000000}Mbps")
     print(f"Lost 개수: {sum(losses)}")
 
     return spinFrame, throughputFrame, lostFrame, cwndFrame 
 
 
-class MainWindow(QtWidgets.QMainWindow):
+class MainWindow(QtWidgets.QMainWindow): # main view
     def __init__(self, args):
         super().__init__()
         self.args = args
@@ -127,14 +127,14 @@ class MainWindow(QtWidgets.QMainWindow):
         # self.plotGraph.getAxis("bottom").setTicks([[(time, f"{time:.6f}") for time in allTimes]])
         # self.plotGraph.getAxis("bottom").setticks()
 
-        pgLayout = self.plotGraph.plotItem.layout
         plotItem1 = self.plotGraph.plotItem
+        pgLayout = plotItem1.layout
         plotItem1.setLabel("left", "Spin bit", units="bit")
         plotItem1.setLabel("bottom", "Time", units="s")
 
         view2 = pg.ViewBox()
         axis2 = pg.AxisItem("right")
-        plotItem1.layout.addItem(axis2, 2, 2, 1, 1)
+        pgLayout.addItem(axis2, 2, 2, 1, 1)
         plotItem1.scene().addItem(view2)
         view2.setXLink(plotItem1)
         axis2.setLabel("Throughput", units="bps")
@@ -145,7 +145,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         view3 = pg.ViewBox()
         axis3 = pg.AxisItem("left")
-        plotItem1.layout.addItem(axis3, 2, 1, 1, 1)
+        pgLayout.addItem(axis3, 2, 1, 1, 1)
         plotItem1.scene().addItem(view3)
         axis3.linkToView(view3)
         axis3.setZValue(-10000)
@@ -155,7 +155,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         view4 = pg.ViewBox()
         axis4 = pg.AxisItem("right")
-        plotItem1.layout.addItem(axis4, 2, 3, 1, 1)
+        pgLayout.addItem(axis4, 2, 3, 1, 1)
         plotItem1.scene().addItem(view4)
         axis4.linkToView(view4)
         axis4.setZValue(-10000)
@@ -163,7 +163,6 @@ class MainWindow(QtWidgets.QMainWindow):
         view4.setXLink(plotItem1)
         
         def updateViews():
-            global plotItem1, view2, view3, view4
             ## view has resized; update auxiliary views to match
             view2.setGeometry(plotItem1.vb.sceneBoundingRect())
             view3.setGeometry(plotItem1.vb.sceneBoundingRect())
