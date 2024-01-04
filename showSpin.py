@@ -13,16 +13,21 @@ import matplotlib
 import pyqtgraph as pg
 from PyQt5 import QtWidgets
 
+
 plotItem1 = None
 plotItem2 = None
 plotItem3 = None
+plotItem4 = None
 
 def loadData(args):
     times = np.array([], dtype=float)
     lostTimes = np.array([], dtype=float)
+    cwndTimes = np.array([], dtype=float)
+
     losses = np.array([], dtype=int)
     spins = np.array([], dtype=int)
     rtts = np.array([], dtype=float)
+    cwnds = np.array([], dtype=int)
 
     ports = {"interop": 4433, "samplequic": 4567}
     port = 0
@@ -37,6 +42,7 @@ def loadData(args):
     prevSpin = 0
     prevTime = 0
 
+    loadTime = datetime.now()
     for packet in cap:
         if hasattr(packet, "quic"):
             if initialTime == 0:  # int
@@ -55,59 +61,66 @@ def loadData(args):
                     prevSpin = spin
                     if (int(packet.number) % 1000) == 0:
                         print(f"{packet.number} packets processed")
-
+                        break
+    
+    print(f"load time: {datetime.now() - loadTime}")
     spinFrame = pd.DataFrame({"time": times, "spin": spins})
     throughputFrame = pd.read_csv(f"{args.file[0]}.csv")
-    print(throughputFrame)
-    print(
-        throughputFrame["All Packets"],
-        throughputFrame["Interval start"],
-        throughputFrame["TCP Errors"],
-    )
 
     with open(f"{args.file[0]}.log") as f:
         lines = f.readlines()
-        initialLogtime = 0
+        initialLogTime = 0
         for line in lines:
             timeString = str(line.split("]")[2].replace("[", ""))
             if "[S][RX][0] LH Ver:" in line and "Type:I" in line:
-                initialLogtime = datetime.strptime(timeString, "%H:%M:%S.%f")
+                initialLogTime = datetime.strptime(timeString, "%H:%M:%S.%f")
             elif "Lost: " in line and "[conn]" in line:
                 logTime = (
-                    datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogtime
+                    datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
                 ).total_seconds()
                 lossCount = int(line.split("Lost: ")[1].split(" ")[0])
-                print(logTime, lossCount)
                 if lossCount > 0:
                     lostTimes = np.append(lostTimes, float(logTime))
                     losses = np.append(losses, int(lossCount))
+            elif "OUT: " in line and "CWnd=" in line:
+                if initialLogTime == 0:
+                    continue
+                logTime = (
+                    datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
+                ).total_seconds()
+                cwnd = int(line.split("CWnd=")[1].split(" ")[0])
+                cwnds = np.append(cwnds, int(cwnd))
+                cwndTimes = np.append(cwndTimes, float(logTime))
 
     throughputFrame["All Packets"] = [
         (x * 8 / 1000000) / throughputFrame["Interval start"][1]
         for x in throughputFrame["All Packets"]
     ]  # Bp100ms -> Mbps
     lostFrame = pd.DataFrame({"time": lostTimes, "loss": losses})
+    cwndFrame = pd.DataFrame({"time" : cwndTimes, "cwnd": cwnds})
 
-    print(lostTimes)
     print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}")
     print(f"평균 throughput: {statistics.mean(throughputFrame['All Packets'])}Mbps")
     print(f"Lost 개수: {sum(losses)}")
 
-    return spinFrame, throughputFrame, lostFrame
+    return spinFrame, throughputFrame, lostFrame, cwndFrame 
 
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, args):
         super().__init__()
-        self.spinFrame, self.throughputFrame, self.lostFrame = loadData(args)
+        self.args = args
+        self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame = loadData(self.args)
         self.drawGraph()
 
     def drawGraph(self):
-        global plotItem1, plotItem2, plotItem3
+        global plotItem1, plotItem2, plotItem3, plotItem4
         self.plotGraph = pg.PlotWidget()
         self.setCentralWidget(self.plotGraph)
         self.plotGraph.show()
         self.plotGraph.clear()
+        #Set window name
+        self.setWindowTitle(self.args.file[0])
         self.plotGraph.showGrid(x=True, y=True)
         self.plotGraph.setBackground("w")
         allTimes = np.append(self.spinFrame["time"], self.lostFrame["time"])
@@ -116,19 +129,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
         pgLayout = self.plotGraph.plotItem.layout
         plotItem1 = self.plotGraph.plotItem
-        plotItem1.setLabel("left", "Spin bit", units="bit개")
+        plotItem1.setLabel("left", "Spin bit", units="bit")
         plotItem1.setLabel("bottom", "Time", units="s")
 
         plotItem2 = pg.ViewBox()
-        plotItem1.showAxis("right")
+        axis2 = pg.AxisItem("right")
+        plotItem1.layout.addItem(axis2, 2, 3, 1, 1)
         plotItem1.scene().addItem(plotItem2)
-        plotItem1.getAxis("right").linkToView(plotItem2)
         plotItem2.setXLink(plotItem1)
-        plotItem1.getAxis("right").setLabel("Throughput", units="Mbps")
+        axis2.setLabel("Throughput", units="Mbps")
+        axis2.linkToView(plotItem2)
+        # plotItem1.showAxis("right")
+        # plotItem1.getAxis("right").linkToView(plotItem2)
+        # plotItem1.getAxis("right").setLabel("Throughput", units="Mbps")
 
         plotItem3 = pg.ViewBox()
         axis3 = pg.AxisItem("left")
-        plotItem1.layout.addItem(axis3, 2, 1)
+        plotItem1.layout.addItem(axis3, 2, 2, 1, 1)
         plotItem1.scene().addItem(plotItem3)
         axis3.linkToView(plotItem3)
         axis3.setZValue(-10000)
@@ -136,16 +153,27 @@ class MainWindow(QtWidgets.QMainWindow):
         plotItem3.setXLink(plotItem1)
         plotItem3.setYLink(plotItem1)
 
+        plotItem4 = pg.ViewBox()
+        axis4 = pg.AxisItem("right")
+        plotItem1.layout.addItem(axis4, 2, 4, 1, 1)
+        plotItem1.scene().addItem(plotItem4)
+        axis4.linkToView(plotItem4)
+        # axis4.setZValue(-10000)
+        axis4.setLabel("CWnd", units="Bytes")
+        # axis4.setZValue(-10000)
+        
         def updateViews():
-            global plotItem1, plotItem2, plotItem3
+            global plotItem1, plotItem2, plotItem3, plotItem4
             ## view has resized; update auxiliary views to match
             plotItem2.setGeometry(plotItem1.vb.sceneBoundingRect())
             plotItem3.setGeometry(plotItem1.vb.sceneBoundingRect())
+            plotItem4.setGeometry(plotItem1.vb.sceneBoundingRect())
             ## need to re-update linked axes since this was called
             ## incorrectly while views had different shapes.
             ## (probably this should be handled in ViewBox.resizeEvent)
             plotItem2.linkedViewChanged(plotItem1.vb, plotItem2.XAxis)
             plotItem3.linkedViewChanged(plotItem1.vb, plotItem3.XAxis)
+            plotItem4.linkedViewChanged(plotItem1.vb, plotItem4.XAxis)
         
         updateViews()
         plotItem1.vb.sigResized.connect(updateViews)
@@ -157,11 +185,16 @@ class MainWindow(QtWidgets.QMainWindow):
             pen="g",)
         )
         plotItem3.addItem(pg.ScatterPlotItem(self.lostFrame["time"].values.flatten(), self.lostFrame["loss"].values.flatten(), pen="r", symbol="o", symbolPen = "r", symbolBrush = "r", symbolSize = 10))
+        plotItem4.addItem(pg.PlotCurveItem(
+            self.cwndFrame["time"].values.flatten(),
+            self.cwndFrame["cwnd"].values.flatten(),
+            pen="m",)
+        )
 
 
 class PyPlotGraph:
     def __init__(self, args):
-        self.spinFrame, self.throughputFrame, self.lostFrame = loadData(args)
+        self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame = loadData(args)
 
     # 파일명.csv (throughput 기록), 파일명.pcapng (wireshark 패킷트레이스), 파일명.log(msquic log, loss 추적용) 필요
     def pyplotGraph(self):
