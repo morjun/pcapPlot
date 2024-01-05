@@ -61,6 +61,7 @@ def loadData(args):
                     prevSpin = spin
                     if (int(packet.number) % 1000) == 0:
                         print(f"{packet.number} packets processed")
+                        break
     
     print(f"load time: {datetime.now() - loadTime}")
     spinFrame = pd.DataFrame({"time": times, "spin": spins})
@@ -112,6 +113,7 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         self.args = args
         self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame = loadData(self.args)
         self.drawGraph()
+        self.show()
 
     def drawGraph(self):
         global plotItem1, view2, view3, view4
@@ -134,7 +136,7 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
         view2 = pg.ViewBox()
         axis2 = pg.AxisItem("right")
-        pgLayout.addItem(axis2, 2, 2, 1, 1)
+        pgLayout.addItem(axis2, 2, 3, 1, 1)
         plotItem1.scene().addItem(view2)
         view2.setXLink(plotItem1)
         axis2.setLabel("Throughput", units="bps")
@@ -155,7 +157,7 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
         view4 = pg.ViewBox()
         axis4 = pg.AxisItem("right")
-        pgLayout.addItem(axis4, 2, 3, 1, 1)
+        pgLayout.addItem(axis4, 2, 4, 1, 1)
         plotItem1.scene().addItem(view4)
         axis4.linkToView(view4)
         axis4.setZValue(-10000)
@@ -259,7 +261,6 @@ def main():
 
     app = QtWidgets.QApplication([])
     mainProgram = MainWindow(args)
-    mainProgram.show()
     app.exec()
 
 
