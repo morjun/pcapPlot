@@ -61,7 +61,6 @@ def loadData(args):
                     prevSpin = spin
                     if (int(packet.number) % 1000) == 0:
                         print(f"{packet.number} packets processed")
-                        break
     
     print(f"load time: {datetime.now() - loadTime}")
     spinFrame = pd.DataFrame({"time": times, "spin": spins})
@@ -117,26 +116,44 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
     def drawGraph(self):
         global plotItem1, view2, view3, view4
-        self.plotGraph = pg.PlotWidget()
-        self.setCentralWidget(self.plotGraph)
-        self.plotGraph.show()
-        self.plotGraph.clear()
+
+        # self.plotGraph = pg.PlotWidget()
+        # self.setCentralWidget(self.plotGraph)
+
+        layoutWidget = pg.GraphicsLayoutWidget()
+        layoutWidget.setBackground("w")
+        # layoutWidget.showGrid(x=True, y=True)
+        self.setCentralWidget(layoutWidget)
+        # self.plotGraph.show()
+        # self.plotGraph.clear()
         #Set window name
         self.setWindowTitle(self.args.file[0])
-        self.plotGraph.showGrid(x=True, y=True)
-        self.plotGraph.setBackground("w")
+
+        # self.plotGraph.showGrid(x=True, y=True)
+        # self.plotGraph.setBackground("w")
+
         allTimes = np.append(self.spinFrame["time"], self.lostFrame["time"])
         # self.plotGraph.getAxis("bottom").setTicks([[(time, f"{time:.6f}") for time in allTimes]])
         # self.plotGraph.getAxis("bottom").setticks()
 
-        plotItem1 = self.plotGraph.plotItem
-        pgLayout = plotItem1.layout
+        # plotItem1 = self.plotGraph.plotItem
+        plotItem1 = pg.PlotItem()
+        view1 = plotItem1.getViewBox()
+        layoutWidget.addItem(plotItem1, 1, 3, 1, 1)
+
+        pgLayout = layoutWidget
         plotItem1.setLabel("left", "Spin bit", units="bit")
         plotItem1.setLabel("bottom", "Time", units="s")
+        plotItem1.axis_left = plotItem1.getAxis("left")
+        pgLayout.addItem(plotItem1.axis_left, 1, 2, 1, 1)
+
+        # blankAx = pg.AxisItem("bottom")
+        # blankAx.setPen('#000000')
+        # layoutWidget.addItem(blankAx, 2, 3)
 
         view2 = pg.ViewBox()
         axis2 = pg.AxisItem("right")
-        pgLayout.addItem(axis2, 2, 3, 1, 1)
+        pgLayout.addItem(axis2, 1, 4, 1, 1)
         plotItem1.scene().addItem(view2)
         view2.setXLink(plotItem1)
         axis2.setLabel("Throughput", units="bps")
@@ -147,7 +164,7 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
         view3 = pg.ViewBox()
         axis3 = pg.AxisItem("left")
-        pgLayout.addItem(axis3, 2, 1, 1, 1)
+        pgLayout.addItem(axis3, 1, 1, 1, 1)
         plotItem1.scene().addItem(view3)
         axis3.linkToView(view3)
         axis3.setZValue(-10000)
@@ -157,7 +174,7 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
         view4 = pg.ViewBox()
         axis4 = pg.AxisItem("right")
-        pgLayout.addItem(axis4, 2, 4, 1, 1)
+        pgLayout.addItem(axis4, 1, 5, 1, 1)
         plotItem1.scene().addItem(view4)
         axis4.linkToView(view4)
         axis4.setZValue(-10000)
