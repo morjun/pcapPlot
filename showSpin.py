@@ -39,22 +39,26 @@ def loadData(args):
     cap = pyshark.FileCapture(f"{args.file[0]}.pcapng")
 
     initialTime = 0
-    prevSpin = 0
+    prevSpin = -1 # 처음 Short Header Packet 감지용 
     prevTime = 0
+    numSpin = -1 # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
 
     loadTime = datetime.now()
     for packet in cap:
         if hasattr(packet, "quic"):
             if initialTime == 0:  # int
-                initialTime = packet.sniff_time.timestamp()
+                initialTime = packet.sniff_time.timestamp() #Initial
             if hasattr(packet.quic, "spin_bit"):
                 if packet.udp.srcport == str(port):  # 서버가 전송한 패킷만
                     time = packet.sniff_time.timestamp() - initialTime
                     spin = packet.quic.spin_bit
                     if prevSpin != spin:
+                        numSpin += 1
                         if prevTime != 0:
                             rtt = time - prevTime
                             rtts = np.append(rtts, float(rtt))  # spin -> rtt 계산
+                        else:
+                            initialSpinTime = time
                         prevTime = time
                     times = np.append(times, float(time))
                     spins = np.append(spins, int(spin))
@@ -98,10 +102,16 @@ def loadData(args):
     ]  # Bp100ms -> Mbps
     lostFrame = pd.DataFrame({"time": lostTimes, "loss": losses})
     cwndFrame = pd.DataFrame({"time" : cwndTimes, "cwnd": cwnds})
+    spinFrequency = numSpin / 2 * (prevTime - initialSpinTime)
 
     print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}")
     print(f"평균 throughput: {statistics.mean(throughputFrame['All Packets'])/1000000}Mbps")
     print(f"Lost 개수: {sum(losses)}")
+    print(f"총 spin 수 : {numSpin}")
+    print(f"spin frequency: {spinFrequency}")
+
+    with open("stats.csv", "a") as f:
+        f.write(f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}\n")
 
     return spinFrame, throughputFrame, lostFrame, cwndFrame 
 
@@ -274,6 +284,11 @@ class PyPlotGraph:
 def main():
     parser = argparse.ArgumentParser(description="Show spin bit")
     parser.add_argument("file", metavar="file", type=str, nargs=1)
+
+    parser.add_argument("-l", "--loss", type=float, default=0.0, help="loss rate of the link", required=False)
+    parser.add_argument("-d", "--delay", type=int, default=0, help="delay of the link(ms)", required=False)
+    parser.add_argument("-b", "--bandwidth", type=int, default=0, help="bandwidth of the link(Mbps)", required=False)
+
     args = parser.parse_args()
 
     app = QtWidgets.QApplication([])
