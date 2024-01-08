@@ -102,16 +102,20 @@ def loadData(args):
     ]  # Bp100ms -> Mbps
     lostFrame = pd.DataFrame({"time": lostTimes, "loss": losses})
     cwndFrame = pd.DataFrame({"time" : cwndTimes, "cwnd": cwnds})
-    spinFrequency = numSpin / 2 * (prevTime - initialSpinTime)
+    spinFrequency = numSpin / (2 * (prevTime - initialSpinTime))
+    avgThroughput = statistics.mean(throughputFrame['All Packets'])/1000000
 
-    print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}")
-    print(f"평균 throughput: {statistics.mean(throughputFrame['All Packets'])/1000000}Mbps")
-    print(f"Lost 개수: {sum(losses)}")
+    print(f"첫 short packet time: {initialSpinTime}초")
+    print(f"마지막 spin time: {prevTime}초")
+
+    print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}초")
+    print(f"평균 throughput: {avgThroughput}Mbps")
+    print(f"Lost 개수: {sum(losses)}개")
     print(f"총 spin 수 : {numSpin}")
-    print(f"spin frequency: {spinFrequency}")
+    print(f"평균 spin frequency: {spinFrequency}Hz")
 
     with open("stats.csv", "a") as f:
-        f.write(f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}\n")
+        f.write(f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}, {avgThroughput}\n")
 
     return spinFrame, throughputFrame, lostFrame, cwndFrame 
 
@@ -285,7 +289,7 @@ def main():
     parser = argparse.ArgumentParser(description="Show spin bit")
     parser.add_argument("file", metavar="file", type=str, nargs=1)
 
-    parser.add_argument("-l", "--loss", type=float, default=0.0, help="loss rate of the link", required=False)
+    parser.add_argument("-l", "--loss", type=float, default=0.0, help="loss rate of the link(%)", required=False)
     parser.add_argument("-d", "--delay", type=int, default=0, help="delay of the link(ms)", required=False)
     parser.add_argument("-b", "--bandwidth", type=int, default=0, help="bandwidth of the link(Mbps)", required=False)
 
