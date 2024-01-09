@@ -29,6 +29,13 @@ def loadData(args):
     rtts = np.array([], dtype=float)
     cwnds = np.array([], dtype=int)
 
+    initialTime = 0
+    initialSpinTime = 0
+    prevSpin = -1 # 처음 Short Header Packet 감지용 
+    prevTime = 0
+    numSpin = -1 # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
+    spinFrame = None
+
     ports = {"interop": 4433, "samplequic": 4567}
     port = 0
     if args.file[0] not in ports:
@@ -36,40 +43,37 @@ def loadData(args):
     else:
         port = ports[args.file[0]]
 
-    cap = pyshark.FileCapture(f"{args.file[0]}.pcapng")
+    try:
+        spinFrame = pd.read_csv(f"{args.file[0]}_spin.csv")
+    except FileNotFoundError:
+        cap = pyshark.FileCapture(f"{args.file[0]}.pcapng")
+        loadStartTime = datetime.now()
+        for packet in cap:
+            if hasattr(packet, "quic"):
+                if initialTime == 0:  # int
+                    initialTime = packet.sniff_time.timestamp() #Initial
+                if hasattr(packet.quic, "spin_bit"):
+                    if packet.udp.srcport == str(port):  # 서버가 전송한 패킷만
+                        time = packet.sniff_time.timestamp() - initialTime
+                        spin = packet.quic.spin_bit
+                        if prevSpin != spin:
+                            numSpin += 1
+                            if prevTime != 0:
+                                rtt = time - prevTime
+                                rtts = np.append(rtts, float(rtt))  # spin -> rtt 계산
+                            else:
+                                initialSpinTime = time
+                            prevTime = time
+                        times = np.append(times, float(time))
+                        spins = np.append(spins, int(spin))
+                        prevSpin = spin
+                        if (int(packet.number) % 1000) == 0:
+                            print(f"{packet.number} packets processed")
+        print(f"load time: {datetime.now() - loadStartTime}")
+        spinFrame = pd.DataFrame({"time": times, "spin": spins})
+        spinFrame.to_csv(f"{args.file[0]}_spin.csv", index=False)
 
-    initialTime = 0
-    prevSpin = -1 # 처음 Short Header Packet 감지용 
-    prevTime = 0
-    numSpin = -1 # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
-
-    loadTime = datetime.now()
-    for packet in cap:
-        if hasattr(packet, "quic"):
-            if initialTime == 0:  # int
-                initialTime = packet.sniff_time.timestamp() #Initial
-            if hasattr(packet.quic, "spin_bit"):
-                if packet.udp.srcport == str(port):  # 서버가 전송한 패킷만
-                    time = packet.sniff_time.timestamp() - initialTime
-                    spin = packet.quic.spin_bit
-                    if prevSpin != spin:
-                        numSpin += 1
-                        if prevTime != 0:
-                            rtt = time - prevTime
-                            rtts = np.append(rtts, float(rtt))  # spin -> rtt 계산
-                        else:
-                            initialSpinTime = time
-                        prevTime = time
-                    times = np.append(times, float(time))
-                    spins = np.append(spins, int(spin))
-                    prevSpin = spin
-                    if (int(packet.number) % 1000) == 0:
-                        print(f"{packet.number} packets processed")
-    
-    print(f"load time: {datetime.now() - loadTime}")
-    spinFrame = pd.DataFrame({"time": times, "spin": spins})
     throughputFrame = pd.read_csv(f"{args.file[0]}.csv")
-
     with open(f"{args.file[0]}.log") as f:
         lines = f.readlines()
         initialLogTime = 0
@@ -102,20 +106,23 @@ def loadData(args):
     ]  # Bp100ms -> Mbps
     lostFrame = pd.DataFrame({"time": lostTimes, "loss": losses})
     cwndFrame = pd.DataFrame({"time" : cwndTimes, "cwnd": cwnds})
-    spinFrequency = numSpin / (2 * (prevTime - initialSpinTime))
     avgThroughput = statistics.mean(throughputFrame['All Packets'])/1000000
 
-    print(f"첫 short packet time: {initialSpinTime}초")
-    print(f"마지막 spin time: {prevTime}초")
+    if prevTime > 0:
+        spinFrequency = numSpin / (2 * (prevTime - initialSpinTime))
+        print(f"첫 short packet time: {initialSpinTime}초")
+        print(f"마지막 spin time: {prevTime}초")
+        print(f"평균 spin frequency: {spinFrequency}Hz")
+    if (numSpin >= 0):
+        print(f"총 spin 수 : {numSpin}")
+        print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}초")
 
-    print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}초")
     print(f"평균 throughput: {avgThroughput}Mbps")
     print(f"Lost 개수: {sum(losses)}개")
-    print(f"총 spin 수 : {numSpin}")
-    print(f"평균 spin frequency: {spinFrequency}Hz")
 
-    with open("stats.csv", "a") as f:
-        f.write(f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}, {avgThroughput}\n")
+    if args.bandwidth >= 0 and prevTime > 0:
+        with open("stats.csv", "a") as f:
+            f.write(f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}, {avgThroughput}, {sum(losses)}\n")
 
     return spinFrame, throughputFrame, lostFrame, cwndFrame 
 
@@ -291,7 +298,7 @@ def main():
 
     parser.add_argument("-l", "--loss", type=float, default=0.0, help="loss rate of the link(%)", required=False)
     parser.add_argument("-d", "--delay", type=int, default=0, help="delay of the link(ms)", required=False)
-    parser.add_argument("-b", "--bandwidth", type=int, default=0, help="bandwidth of the link(Mbps)", required=False)
+    parser.add_argument("-b", "--bandwidth", type=int, default=-1, help="bandwidth of the link(Mbps)", required=False)
 
     args = parser.parse_args()
 
