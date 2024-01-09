@@ -1,11 +1,7 @@
-import pyshark
-
 import numpy as np
 import pandas as pd
-import statistics
 
 import argparse
-from datetime import datetime
 
 import pyqtgraph as pg
 from PyQt5 import QtWidgets
@@ -51,17 +47,17 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
             if i == 0:
                 self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & (self.spinStatFrame["delay"] == FIXED_DELAY)]
-                self.text = pg.LabelItem(text=f"Bandwidth: {FIXED_BANDWIDTH/1000000}Mbps\nDelay: {FIXED_DELAY*1000}ms")
+                self.text = pg.LabelItem(text=f"Bandwidth: {FIXED_BANDWIDTH/1000000}Mbps\n Delay: {FIXED_DELAY*1000}ms")
                 self.text.setParentItem(plotItem1)
                 self.text.anchor(itemPos = (0, 0), parentPos = (0, 0))
             elif i == 1:
                 self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["lossRate"] == FIXED_LOSSRATE) & (self.spinStatFrame["delay"] == FIXED_DELAY)]
-                self.text = pg.LabelItem(text=f"Loss Rate: {FIXED_LOSSRATE} %\nDelay: {FIXED_DELAY*1000}ms")
+                self.text = pg.LabelItem(text=f"Loss Rate: {FIXED_LOSSRATE}%\n Delay: {FIXED_DELAY*1000}ms")
                 self.text.setParentItem(plotItem1)
                 self.text.anchor(itemPos = (0, 0), parentPos = (0, 0))
             elif i == 2:
                 self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & (self.spinStatFrame["lossRate"] == FIXED_LOSSRATE)]
-                self.text = pg.LabelItem(text=f"Bandwidth: {FIXED_BANDWIDTH/1000000}Mbps\nLoss Rate: {FIXED_LOSSRATE} %")
+                self.text = pg.LabelItem(text=f"Bandwidth: {FIXED_BANDWIDTH/1000000}Mbps\n Loss Rate: {FIXED_LOSSRATE}%")
                 self.text.setParentItem(plotItem1)
                 self.text.anchor(itemPos = (0, 0), parentPos = (0, 0))
 

@@ -160,33 +160,30 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         # plotItem1 = self.plotGraph.plotItem
         plotItem1 = pg.PlotItem()
         view1 = plotItem1.getViewBox()
-        layoutWidget.addItem(plotItem1, 1, 3, 1, 1)
+        layoutWidget.addItem(plotItem1, 1, 3, 2)
 
         pgLayout = layoutWidget
         plotItem1.setLabel("left", "Spin bit", units="bit")
-        plotItem1.setLabel("bottom", "Time", units="s")
-        plotItem1.axis_left = plotItem1.getAxis("left")
-        pgLayout.addItem(plotItem1.axis_left, 1, 2, 1, 1)
 
-        # blankAx = pg.AxisItem("bottom")
-        # blankAx.setPen('#000000')
-        # layoutWidget.addItem(blankAx, 2, 3)
+        # plotItem1.axis_left = plotItem1.getAxis("left")
+        # pgLayout.addItem(plotItem1.axis_left, 1, 2)
+
+        plotItem1.axis_bottom = plotItem1.getAxis("bottom")
+        pgLayout.addItem(plotItem1.axis_bottom, 3, 3, 2)
+        plotItem1.setLabel("bottom", "Time", units="s")
 
         view2 = pg.ViewBox()
         axis2 = pg.AxisItem("right")
-        pgLayout.addItem(axis2, 1, 4, 1, 1)
-        plotItem1.scene().addItem(view2)
+        pgLayout.addItem(axis2, 1, 4, 2, 1)
+        pgLayout.scene().addItem(view2)
         view2.setXLink(plotItem1)
         axis2.setLabel("Throughput", units="bps")
         axis2.linkToView(view2)
-        # plotItem1.showAxis("right")
-        # plotItem1.getAxis("right").linkToView(plotItem2)
-        # plotItem1.getAxis("right").setLabel("Throughput", units="Mbps")
 
         view3 = pg.ViewBox()
         axis3 = pg.AxisItem("left")
-        pgLayout.addItem(axis3, 1, 1, 1, 1)
-        plotItem1.scene().addItem(view3)
+        pgLayout.addItem(axis3, 1, 1, 2, 1)
+        pgLayout.scene().addItem(view3)
         axis3.linkToView(view3)
         axis3.setZValue(-10000)
         axis3.setLabel("Lost", units="개")
@@ -195,8 +192,8 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
         view4 = pg.ViewBox()
         axis4 = pg.AxisItem("right")
-        pgLayout.addItem(axis4, 1, 5, 1, 1)
-        plotItem1.scene().addItem(view4)
+        pgLayout.addItem(axis4, 1, 5, 2, 1)
+        pgLayout.scene().addItem(view4)
         axis4.linkToView(view4)
         axis4.setZValue(-10000)
         axis4.setLabel("CWnd", units="Bytes")
@@ -214,6 +211,10 @@ class MainWindow(QtWidgets.QMainWindow): # main view
             view3.linkedViewChanged(plotItem1.vb, view3.XAxis)
             view4.linkedViewChanged(plotItem1.vb, view4.XAxis)
         
+        view2.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
+        view3.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
+        view4.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
+
         updateViews()
         plotItem1.vb.sigResized.connect(updateViews)
 
