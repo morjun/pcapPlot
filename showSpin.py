@@ -157,6 +157,7 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         # self.plotGraph.getAxis("bottom").setTicks([[(time, f"{time:.6f}") for time in allTimes]])
         # self.plotGraph.getAxis("bottom").setticks()
 
+
         # plotItem1 = self.plotGraph.plotItem
         plotItem1 = pg.PlotItem()
         view1 = plotItem1.getViewBox()
@@ -164,13 +165,12 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
         pgLayout = layoutWidget
         plotItem1.setLabel("left", "Spin bit", units="bit")
+        plotItem1.axis_left = plotItem1.getAxis("left")
+        pgLayout.addItem(plotItem1.axis_left, 1, 2, 2)
+        # blankAx = pg.AxisItem("bottom")
+        # blankAx.setPen("w")
+        # layoutWidget.addItem(blankAx, 3, 1, 1, 4)
 
-        # plotItem1.axis_left = plotItem1.getAxis("left")
-        # pgLayout.addItem(plotItem1.axis_left, 1, 2)
-
-        plotItem1.axis_bottom = plotItem1.getAxis("bottom")
-        pgLayout.addItem(plotItem1.axis_bottom, 3, 3, 2)
-        plotItem1.setLabel("bottom", "Time", units="s")
 
         view2 = pg.ViewBox()
         axis2 = pg.AxisItem("right")
@@ -185,7 +185,6 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         pgLayout.addItem(axis3, 1, 1, 2, 1)
         pgLayout.scene().addItem(view3)
         axis3.linkToView(view3)
-        axis3.setZValue(-10000)
         axis3.setLabel("Lost", units="개")
         view3.setXLink(plotItem1)
         view3.setYLink(plotItem1)
@@ -195,9 +194,14 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         pgLayout.addItem(axis4, 1, 5, 2, 1)
         pgLayout.scene().addItem(view4)
         axis4.linkToView(view4)
-        axis4.setZValue(-10000)
         axis4.setLabel("CWnd", units="Bytes")
         view4.setXLink(plotItem1)
+
+
+        plotItem1.axis_bottom = plotItem1.getAxis("bottom")
+        pgLayout.addItem(plotItem1.axis_bottom, 3, 3, 2, 1)
+        plotItem1.setLabel("bottom", "Time", units="s")
+
         
         def updateViews():
             ## view has resized; update auxiliary views to match
@@ -218,7 +222,7 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         updateViews()
         plotItem1.vb.sigResized.connect(updateViews)
 
-        plotItem1.plot(self.spinFrame["time"].values.flatten(), self.spinFrame["spin"].values.flatten(), pen="b")
+        view1.addItem(pg.PlotCurveItem(self.spinFrame["time"].values.flatten(), self.spinFrame["spin"].values.flatten(), pen="b"))
         view2.addItem(pg.PlotCurveItem(
             self.throughputFrame["Interval start"].values.flatten(),
             self.throughputFrame["All Packets"].values.flatten(),
