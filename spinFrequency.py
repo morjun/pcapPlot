@@ -41,9 +41,11 @@ class MainWindow(QtWidgets.QMainWindow): # main view
             pgLayout = layoutWidget
             plotItem1.setLabel("left", "Spin Frequency", units="Hz")
             plotItem1.setLabel("bottom", xAxes[i], units=units[xAxes[i]])
+
             # plotItem1.getAxis("bottom").setTicks([[(lossRate, f"{lossRate:.2f}") for lossRate in self.spinStatFrame["lossRate"].values.flatten()]])
-            plotItem1.axis_left = plotItem1.getAxis("left")
-            pgLayout.addItem(plotItem1.axis_left, 1, 2+i*3, 1, 1)
+
+            # plotItem1.axis_left = plotItem1.getAxis("left")
+            # pgLayout.addItem(plotItem1.axis_left, 1, 2+i*3, 1, 1)
 
             if i == 0:
                 self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & (self.spinStatFrame["delay"] == FIXED_DELAY)]
