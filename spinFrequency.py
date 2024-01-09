@@ -51,17 +51,17 @@ class MainWindow(QtWidgets.QMainWindow): # main view
                 self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & (self.spinStatFrame["delay"] == FIXED_DELAY)]
                 self.text = pg.LabelItem(text=f"Bandwidth: {FIXED_BANDWIDTH/1000000}Mbps\n Delay: {FIXED_DELAY*1000}ms")
                 self.text.setParentItem(plotItem1)
-                self.text.anchor(itemPos = (0, 0), parentPos = (0, 0))
+                self.text.anchor(itemPos = (0.5, 0.1), parentPos = (0.5, 0.1))
             elif i == 1:
                 self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["lossRate"] == FIXED_LOSSRATE) & (self.spinStatFrame["delay"] == FIXED_DELAY)]
                 self.text = pg.LabelItem(text=f"Loss Rate: {FIXED_LOSSRATE}%\n Delay: {FIXED_DELAY*1000}ms")
                 self.text.setParentItem(plotItem1)
-                self.text.anchor(itemPos = (0, 0), parentPos = (0, 0))
+                self.text.anchor(itemPos = (0.5, 0.1), parentPos = (0.5, 0.1))
             elif i == 2:
                 self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & (self.spinStatFrame["lossRate"] == FIXED_LOSSRATE)]
                 self.text = pg.LabelItem(text=f"Bandwidth: {FIXED_BANDWIDTH/1000000}Mbps\n Loss Rate: {FIXED_LOSSRATE}%")
                 self.text.setParentItem(plotItem1)
-                self.text.anchor(itemPos = (0, 0), parentPos = (0, 0))
+                self.text.anchor(itemPos = (0.5, 0.1), parentPos = (0.5, 0.1))
 
             view1.addItem(pg.ScatterPlotItem(self.fixedFrame[xAxes[i]].values.flatten(), self.fixedFrame["spinFreq"].values.flatten(), pen="b"))
 
