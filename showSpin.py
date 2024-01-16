@@ -51,7 +51,7 @@ def loadData(args):
         for packet in cap:
             if hasattr(packet, "quic"):
                 if initialTime == 0:  # int
-                    initialTime = packet.sniff_time.timestamp() #Initial
+                    initialTime = packet.sniff_time.timestamp() #Initial 패킷의 전송을 기준 시각으로
                 if hasattr(packet.quic, "spin_bit"):
                     if packet.udp.srcport == str(port):  # 서버가 전송한 패킷만
                         time = packet.sniff_time.timestamp() - initialTime
@@ -80,7 +80,7 @@ def loadData(args):
         for line in lines:
             timeString = str(line.split("]")[2].replace("[", ""))
             if "[S][RX][0] LH Ver:" in line and "Type:I" in line:
-                initialLogTime = datetime.strptime(timeString, "%H:%M:%S.%f")
+                initialLogTime = datetime.strptime(timeString, "%H:%M:%S.%f") # Initial 패킷의 전송을 기준 시각으로
             elif "Lost: " in line and "[conn]" in line:
                 logTime = (
                     datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
@@ -123,6 +123,18 @@ def loadData(args):
     if args.bandwidth >= 0 and prevTime > 0:
         with open("stats.csv", "a") as f:
             f.write(f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}, {avgThroughput}, {sum(losses)}\n")
+    
+    lostFrame.to_csv(f"{args.file[0]}_lost.csv", index=False)
+    cwndFrame.to_csv(f"{args.file[0]}_cwnd.csv", index=False)
+    
+    # cf1 = pd.merge_asof(spinFrame, lostFrame, on="time", direction="nearest", tolerance=0.01)
+    # cf2 = pd.merge_asof(lostFrame, spinFrame, on="time", direction="nearest", tolerance=0.01)
+    # cf3 = pd.concat([cf1, cf2[cf2['loss'].isnull()]]).sort_index()
+    # cf3 = pd.merge(spinFrame, lostFrame, on="time", how="outer", sort=True)
+
+    # combinedFrame = pd.merge_asof(spinFrame, lostFrame, on="time", direction="nearest")
+    # combinedFrame = pd.merge_asof(combinedFrame, cwndFrame, on="time", direction="nearest")
+    # combinedFrame.to_csv(f"{args.file[0]}_combined.csv", index=False)
 
     return spinFrame, throughputFrame, lostFrame, cwndFrame 
 
