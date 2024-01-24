@@ -111,8 +111,8 @@ class MainWindow(QtWidgets.QMainWindow): # main view
                 self.view1.addItem(medians)
                 self.legend.addItem(samples, "Loss율 0.5% 이상 Delay 33ms 이하 표본")
             else:
-                samples = pg.ScatterPlotItem(x=self.fixedFrame["spinFreq"].values.flatten(), y=self.fixedFrame["avgThroughput"].values.flatten(), pen = "m", symbol = "t", name = "No Loss")
-                medians = pg.ScatterPlotItem(x=self.boxFrame["spinFreq"].values.flatten(), y=self.boxFrame["avgThroughput"].values.flatten(), pen = "r", brush = "r", symbol = "t")
+                samples = pg.ScatterPlotItem(x=self.fixedFrame["spinFreq"].values.flatten(), y=self.fixedFrame["avgThroughput"].values.flatten(), pen = "m", symbol = "star", size = 15, name = "No Loss")
+                medians = pg.ScatterPlotItem(x=self.boxFrame["spinFreq"].values.flatten(), y=self.boxFrame["avgThroughput"].values.flatten(), pen = "r", brush = "r", symbol = "star", size = 15)
                 self.view1.addItem(samples)
                 self.view1.addItem(medians)
                 self.legend.addItem(samples, "Loss율 0.5% 미만 Delay 33ms 초과 표본")

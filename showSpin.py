@@ -144,24 +144,37 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         super().__init__()
         self.args = args
         self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame = loadData(self.args)
+        self.layoutWidget = pg.GraphicsLayoutWidget()
+        self.layoutWidget.setBackground("w")
+        self.setCentralWidget(self.layoutWidget)
+        # layoutWidget.showGrid(x=True, y=True)
+        # self.plotGraph.show()
+        # self.plotGraph.clear()
+        #Set window name
+        self.setWindowTitle(self.args.file[0])
+
         self.drawGraph()
+        self.drawTCGraph()
         self.show()
+    
+    def drawTCGraph(self):
+        plotItem2 = pg.PlotItem()
+        view5 = plotItem2.getViewBox()
+        self.layoutWidget.addItem(plotItem2, 5, 1, 2, 5)
+        plotItem2.setLabel("left", "Throughput", units="bps")
+        plotItem2.setLabel("bottom", "CWnd", units="Bytes")
+        throughput2 = self.throughputFrame.rename(columns={"Interval start": "time"})
+        print(throughput2)
+        ctFrame = pd.merge_asof(self.cwndFrame, throughput2, on="time", direction = "nearest", tolerance=0.01)
+        print(ctFrame)
+        view5.addItem(pg.ScatterPlotItem(ctFrame["cwnd"].values.flatten(), ctFrame["All Packets"].values.flatten(), pen="b"))
+
 
     def drawGraph(self):
         global plotItem1, view2, view3, view4
 
         # self.plotGraph = pg.PlotWidget()
         # self.setCentralWidget(self.plotGraph)
-
-        layoutWidget = pg.GraphicsLayoutWidget()
-        layoutWidget.setBackground("w")
-        # layoutWidget.showGrid(x=True, y=True)
-        self.setCentralWidget(layoutWidget)
-        # self.plotGraph.show()
-        # self.plotGraph.clear()
-        #Set window name
-        self.setWindowTitle(self.args.file[0])
-
         # self.plotGraph.showGrid(x=True, y=True)
         # self.plotGraph.setBackground("w")
 
@@ -172,10 +185,12 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
         # plotItem1 = self.plotGraph.plotItem
         plotItem1 = pg.PlotItem()
-        view1 = plotItem1.getViewBox()
-        layoutWidget.addItem(plotItem1, 1, 3, 2)
+        legend = plotItem1.addLegend(offset=(30, 30))
 
-        pgLayout = layoutWidget
+        view1 = plotItem1.getViewBox()
+        self.layoutWidget.addItem(plotItem1, 1, 3, 2)
+
+        pgLayout = self.layoutWidget
         plotItem1.setLabel("left", "Spin bit", units="bit")
         plotItem1.axis_left = plotItem1.getAxis("left")
         pgLayout.addItem(plotItem1.axis_left, 1, 2, 2)
@@ -234,18 +249,27 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         updateViews()
         plotItem1.vb.sigResized.connect(updateViews)
 
-        view1.addItem(pg.PlotCurveItem(self.spinFrame["time"].values.flatten(), self.spinFrame["spin"].values.flatten(), pen="b"))
-        view2.addItem(pg.PlotCurveItem(
+        spinItem = pg.PlotCurveItem(self.spinFrame["time"].values.flatten(), self.spinFrame["spin"].values.flatten(), pen="b")
+        throughputItem = pg.PlotCurveItem(
             self.throughputFrame["Interval start"].values.flatten(),
             self.throughputFrame["All Packets"].values.flatten(),
-            pen="g",)
+            pen="g",
         )
-        view3.addItem(pg.ScatterPlotItem(self.lostFrame["time"].values.flatten(), self.lostFrame["loss"].values.flatten(), pen="r", symbol="o", symbolPen = "r", symbolBrush = "r", symbolSize = 10))
-        view4.addItem(pg.PlotCurveItem(
+        lossItem = pg.ScatterPlotItem(self.lostFrame["time"].values.flatten(), self.lostFrame["loss"].values.flatten(), pen="r", symbol="o", symbolPen = "r", symbolBrush = "r", symbolSize = 10)
+        cwndItem = pg.PlotCurveItem(
             self.cwndFrame["time"].values.flatten(),
             self.cwndFrame["cwnd"].values.flatten(),
             pen="m",)
-        )
+
+        view1.addItem(spinItem)
+        view2.addItem(throughputItem)
+        view3.addItem(lossItem)
+        view4.addItem(cwndItem)
+
+        legend.addItem(spinItem, "Spin bit")
+        legend.addItem(lossItem, "Lost")
+        legend.addItem(throughputItem, "Throughput")
+        legend.addItem(cwndItem, "CWnd")
 
 
 class PyPlotGraph:
