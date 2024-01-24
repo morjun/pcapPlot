@@ -70,15 +70,21 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & (self.spinStatFrame["lossRate"] == 0)]
         self.view1.addItem(pg.ScatterPlotItem(self.fixedFrame[self.xAxes[2]].values.flatten(), self.fixedFrame["spinFreq"].values.flatten(), pen="b"))
 
-        self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & (((self.spinStatFrame["lossRate"] > FIXED_LOSSRATE) & (self.spinStatFrame["delay"] == FIXED_DELAY)) | ((self.spinStatFrame["lossRate"] == 0) & (self.spinStatFrame["delay"] > FIXED_DELAY)))]
+        self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & (((self.spinStatFrame["lossRate"] > 0.5) & (self.spinStatFrame["delay"] <= FIXED_DELAY)) | ((self.spinStatFrame["lossRate"] == 0) & (self.spinStatFrame["delay"] > 0.06)))]
+        # self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH)]
         print(self.fixedFrame)
         self.boxFrame = pd.DataFrame(columns=["spinFreq", "avgThroughput", "top", "bottom"])
-        for spinFreq in self.fixedFrame["spinFreq"].values.flatten():
-            avgPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - int(spinFreq)) < 0.5]["avgThroughput"].mean()
-            maxPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - int(spinFreq)) < 0.5]["avgThroughput"].max()
-            minPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - int(spinFreq)) < 0.5]["avgThroughput"].min()
-            if self.boxFrame.loc[self.boxFrame["spinFreq"] == int(spinFreq)].empty:
-                self.boxFrame.loc[len(self.boxFrame.index)] = [int(spinFreq), avgPerSF, maxPerSF-avgPerSF, avgPerSF-minPerSF]
+
+        spinFreqInts = set(self.fixedFrame["spinFreq"].values.flatten().astype(int))
+        spinFreqInts = sorted(spinFreqInts)
+        spinFreqInts.append(spinFreqInts[-1]+1)
+
+        for spinFreq in spinFreqInts:
+            medPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - spinFreq) < 0.5]["avgThroughput"].median() # 표본이 짝수 개일 경우 두 중앙값의 평균 반환
+            maxPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - spinFreq) < 0.5]["avgThroughput"].max()
+            minPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - spinFreq) < 0.5]["avgThroughput"].min()
+            if self.boxFrame.loc[self.boxFrame["spinFreq"] == spinFreq].empty:
+                self.boxFrame.loc[len(self.boxFrame.index)] = [spinFreq, medPerSF, maxPerSF-medPerSF, medPerSF-minPerSF]
 
         self.boxFrame.sort_values(by=["spinFreq"], inplace=True)
         print(self.boxFrame)

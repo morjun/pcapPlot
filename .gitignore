@@ -2,3 +2,9 @@
 *.pcap
 *.csv
 *.log
+*.png
+*.zip
+*.pdf
+*.txt
+*.idx
+msquic_lttng*
