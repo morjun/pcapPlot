@@ -26,7 +26,7 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         self.plotItem1.setLabel("bottom", x, units=x_unit)
         self.text = pg.LabelItem(text=text)
         self.text.setParentItem(self.plotItem1)
-        self.legend = self.plotItem1.addLegend()
+        self.legend = self.plotItem1.addLegend(offset=(30, 150))
         self.text.anchor(itemPos = (0.5, 0.1), parentPos = (0.5, 0.1))
 
     def drawGraph(self):
