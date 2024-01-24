@@ -19,13 +19,14 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         self.show()
     
     def putPlot(self, row, col, text, x, x_unit, rowSpan = 1, colSpan = 1, y = "Spin Frequency", y_unit = "Hz"):
-        plotItem1 = pg.PlotItem()
-        self.view1 = plotItem1.getViewBox()
-        self.layoutWidget.addItem(plotItem1, row, col, rowSpan, colSpan)
-        plotItem1.setLabel("left", y, units=y_unit)
-        plotItem1.setLabel("bottom", x, units=x_unit)
+        self.plotItem1 = pg.PlotItem()
+        self.view1 = self.plotItem1.getViewBox()
+        self.layoutWidget.addItem(self.plotItem1, row, col, rowSpan, colSpan)
+        self.plotItem1.setLabel("left", y, units=y_unit)
+        self.plotItem1.setLabel("bottom", x, units=x_unit)
         self.text = pg.LabelItem(text=text)
-        self.text.setParentItem(plotItem1)
+        self.text.setParentItem(self.plotItem1)
+        self.legend = self.plotItem1.addLegend()
         self.text.anchor(itemPos = (0.5, 0.1), parentPos = (0.5, 0.1))
 
     def drawGraph(self):
@@ -70,32 +71,55 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & (self.spinStatFrame["lossRate"] == 0)]
         self.view1.addItem(pg.ScatterPlotItem(self.fixedFrame[self.xAxes[2]].values.flatten(), self.fixedFrame["spinFreq"].values.flatten(), pen="b"))
 
-        self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & (((self.spinStatFrame["lossRate"] > 0.5) & (self.spinStatFrame["delay"] <= FIXED_DELAY)) | ((self.spinStatFrame["lossRate"] == 0) & (self.spinStatFrame["delay"] > 0.06)))]
-        # self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH)]
-        print(self.fixedFrame)
-        self.boxFrame = pd.DataFrame(columns=["spinFreq", "avgThroughput", "top", "bottom"])
-
-        spinFreqInts = set(self.fixedFrame["spinFreq"].values.flatten().astype(int))
-        spinFreqInts = sorted(spinFreqInts)
-        spinFreqInts.append(spinFreqInts[-1]+1)
-
-        for spinFreq in spinFreqInts:
-            medPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - spinFreq) < 0.5]["avgThroughput"].median() # 표본이 짝수 개일 경우 두 중앙값의 평균 반환
-            maxPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - spinFreq) < 0.5]["avgThroughput"].max()
-            minPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - spinFreq) < 0.5]["avgThroughput"].min()
-            if self.boxFrame.loc[self.boxFrame["spinFreq"] == spinFreq].empty:
-                self.boxFrame.loc[len(self.boxFrame.index)] = [spinFreq, medPerSF, maxPerSF-medPerSF, medPerSF-minPerSF]
-
-        self.boxFrame.sort_values(by=["spinFreq"], inplace=True)
-        print(self.boxFrame)
-
         self.putPlot(2, 0, "", "spinFreq", self.units["spinFreq"], y = "Avg. Throughput", y_unit = "bps", rowSpan = 1, colSpan = 2)
-        error = pg.ErrorBarItem(beam=0.3, pen = "r")
-        error.setData(x = self.boxFrame["spinFreq"].values.flatten(), y = self.boxFrame["avgThroughput"].values.flatten(), top = self.boxFrame["top"].values.flatten(), bottom = self.boxFrame["bottom"].values.flatten(), pen="b")
-        self.view1.addItem(pg.PlotCurveItem(x=self.boxFrame["spinFreq"].values.flatten(), y=self.boxFrame["avgThroughput"].values.flatten(), pen = "g", symbol = "o"))
-        self.view1.addItem(pg.ScatterPlotItem(x=self.boxFrame["spinFreq"].values.flatten(), y=self.boxFrame["avgThroughput"].values.flatten(), pen = "r", brush = "r", symbol = "o"))
-        self.view1.addItem(pg.ScatterPlotItem(x=self.fixedFrame["spinFreq"].values.flatten(), y=self.fixedFrame["avgThroughput"].values.flatten(), pen = "b", symbol = "o"))
-        self.view1.addItem(error)
+        combinedBoxFrame = pd.DataFrame(columns=["spinFreq", "avgThroughput", "top", "bottom"])
+        for i in range(0, 2):
+            if i == 0:
+                self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & ((self.spinStatFrame["lossRate"] >= 0.5) & (self.spinStatFrame["delay"] <= FIXED_DELAY))]
+            else:
+                self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & ((self.spinStatFrame["lossRate"] < 0.5) & (self.spinStatFrame["delay"] > FIXED_DELAY))]
+            # self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH)]
+
+            print(self.fixedFrame)
+            self.boxFrame = pd.DataFrame(columns=["spinFreq", "avgThroughput", "top", "bottom"])
+
+            spinFreqInts = set(self.fixedFrame["spinFreq"].values.flatten().astype(int))
+            spinFreqInts = sorted(spinFreqInts)
+            spinFreqInts.append(spinFreqInts[-1]+1)
+
+            for spinFreq in range(0, max(spinFreqInts)+1):
+                medPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - spinFreq) < 0.5]["avgThroughput"].median() # 표본이 짝수 개일 경우 두 중앙값의 평균 반환
+                maxPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - spinFreq) < 0.5]["avgThroughput"].max()
+                minPerSF = self.fixedFrame.loc[abs(self.fixedFrame["spinFreq"] - spinFreq) < 0.5]["avgThroughput"].min()
+                if self.boxFrame.loc[self.boxFrame["spinFreq"] == spinFreq].empty:
+                    self.boxFrame.loc[len(self.boxFrame.index)] = [spinFreq, medPerSF, maxPerSF-medPerSF, medPerSF-minPerSF]
+
+            self.boxFrame.sort_values(by=["spinFreq"], inplace=True)
+            combinedBoxFrame = pd.concat([combinedBoxFrame, self.boxFrame], ignore_index=True)
+            combinedBoxFrame.sort_values(by=["spinFreq"], inplace=True)
+
+            # print(self.boxFrame)
+            print(combinedBoxFrame)
+
+            error = pg.ErrorBarItem(beam=0.3, pen = "r")
+            error.setData(x = self.boxFrame["spinFreq"].values.flatten(), y = self.boxFrame["avgThroughput"].values.flatten(), top = self.boxFrame["top"].values.flatten(), bottom = self.boxFrame["bottom"].values.flatten(), pen="b")
+
+            if (i == 0):
+                samples = pg.ScatterPlotItem(x=self.fixedFrame["spinFreq"].values.flatten(), y=self.fixedFrame["avgThroughput"].values.flatten(), pen = "b", symbol = "o")
+                medians = pg.ScatterPlotItem(x=self.boxFrame["spinFreq"].values.flatten(), y=self.boxFrame["avgThroughput"].values.flatten(), pen = "r", brush = "r", symbol = "o")
+                self.view1.addItem(samples)
+                self.view1.addItem(medians)
+                self.legend.addItem(samples, "Loss율 0.5% 이상 Delay 33ms 이하 표본")
+            else:
+                samples = pg.ScatterPlotItem(x=self.fixedFrame["spinFreq"].values.flatten(), y=self.fixedFrame["avgThroughput"].values.flatten(), pen = "m", symbol = "t", name = "No Loss")
+                medians = pg.ScatterPlotItem(x=self.boxFrame["spinFreq"].values.flatten(), y=self.boxFrame["avgThroughput"].values.flatten(), pen = "r", brush = "r", symbol = "t")
+                self.view1.addItem(samples)
+                self.view1.addItem(medians)
+                self.legend.addItem(samples, "Loss율 0.5% 미만 Delay 33ms 초과 표본")
+                self.view1.addItem(pg.PlotCurveItem(x=combinedBoxFrame["spinFreq"].values.flatten(), y=combinedBoxFrame["avgThroughput"].values.flatten(), pen = "g", symbol = "o"))
+
+            self.legend.addItem(medians, "Median")
+            self.view1.addItem(error)
 
 
 def main():
