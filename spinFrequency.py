@@ -76,8 +76,10 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         for i in range(0, 2):
             if i == 0:
                 self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & ((self.spinStatFrame["lossRate"] >= 0.5) & (self.spinStatFrame["delay"] <= FIXED_DELAY))]
+                # self.fixedFrame = self.spinStatFrame[((self.spinStatFrame["lossRate"] >= 0.5) & (self.spinStatFrame["delay"] <= FIXED_DELAY))]
             else:
                 self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & ((self.spinStatFrame["lossRate"] < 0.5) & (self.spinStatFrame["delay"] > FIXED_DELAY))]
+                # self.fixedFrame = self.spinStatFrame[((self.spinStatFrame["lossRate"] < 0.5) & (self.spinStatFrame["delay"] > FIXED_DELAY))]
             # self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH)]
 
             print(self.fixedFrame)

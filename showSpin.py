@@ -13,21 +13,17 @@ import matplotlib
 import pyqtgraph as pg
 from PyQt5 import QtWidgets
 
-
-plotItem1 = None
-view2 = None
-view3 = None
-view4 = None
-
 def loadData(args):
     times = np.array([], dtype=float)
     lostTimes = np.array([], dtype=float)
     cwndTimes = np.array([], dtype=float)
+    wMaxTimes = np.array([], dtype=float)
 
     losses = np.array([], dtype=int)
     spins = np.array([], dtype=int)
     rtts = np.array([], dtype=float)
     cwnds = np.array([], dtype=int)
+    wMaxes = np.array([], dtype=int)
 
     initialTime = 0
     initialSpinTime = 0
@@ -81,23 +77,26 @@ def loadData(args):
             timeString = str(line.split("]")[2].replace("[", ""))
             if "[S][RX][0] LH Ver:" in line and "Type:I" in line:
                 initialLogTime = datetime.strptime(timeString, "%H:%M:%S.%f") # Initial 패킷의 전송을 기준 시각으로
-            elif "Lost: " in line and "[conn]" in line:
-                logTime = (
-                    datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
-                ).total_seconds()
-                lossCount = int(line.split("Lost: ")[1].split(" ")[0])
-                if lossCount > 0:
-                    lostTimes = np.append(lostTimes, float(logTime))
-                    losses = np.append(losses, int(lossCount))
-            elif "OUT: " in line and "CWnd=" in line:
+            else:
                 if initialLogTime == 0:
                     continue
                 logTime = (
                     datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
                 ).total_seconds()
-                cwnd = int(line.split("CWnd=")[1].split(" ")[0])
-                cwnds = np.append(cwnds, int(cwnd))
-                cwndTimes = np.append(cwndTimes, float(logTime))
+                if "Lost: " in line and "[conn]" in line:
+                    lossCount = int(line.split("Lost: ")[1].split(" ")[0])
+                    if lossCount > 0:
+                        lostTimes = np.append(lostTimes, float(logTime))
+                        losses = np.append(losses, int(lossCount))
+                elif "OUT: " in line and "CWnd=" in line:
+                    cwnd = int(line.split("CWnd=")[1].split(" ")[0])
+                    cwnds = np.append(cwnds, int(cwnd))
+                    cwndTimes = np.append(cwndTimes, float(logTime))
+                elif "WindowMax" in line:
+                    wMax = int(line.split("WindowMax=")[1].split(" ")[0])
+                    wMaxes = np.append(wMaxes, int(wMax))
+                    wMaxTimes = np.append(wMaxTimes, float(logTime))
+
 
     throughputFrame["All Packets"] = [
         # (x * 8 / 1000000) / throughputFrame["Interval start"][1]
@@ -106,6 +105,7 @@ def loadData(args):
     ]  # Bp100ms -> Mbps
     lostFrame = pd.DataFrame({"time": lostTimes, "loss": losses})
     cwndFrame = pd.DataFrame({"time" : cwndTimes, "cwnd": cwnds})
+    wMaxFrame = pd.DataFrame({"time" : wMaxTimes, "wMax": wMaxes})
     avgThroughput = statistics.mean(throughputFrame['All Packets'])/1000000
 
     if prevTime > 0:
@@ -126,6 +126,7 @@ def loadData(args):
     
     lostFrame.to_csv(f"{args.file[0]}_lost.csv", index=False)
     cwndFrame.to_csv(f"{args.file[0]}_cwnd.csv", index=False)
+    wMaxFrame.to_csv(f"{args.file[0]}_wMax.csv", index=False)
     
     # cf1 = pd.merge_asof(spinFrame, lostFrame, on="time", direction="nearest", tolerance=0.01)
     # cf2 = pd.merge_asof(lostFrame, spinFrame, on="time", direction="nearest", tolerance=0.01)
@@ -136,14 +137,14 @@ def loadData(args):
     # combinedFrame = pd.merge_asof(combinedFrame, cwndFrame, on="time", direction="nearest")
     # combinedFrame.to_csv(f"{args.file[0]}_combined.csv", index=False)
 
-    return spinFrame, throughputFrame, lostFrame, cwndFrame 
+    return spinFrame, throughputFrame, lostFrame, cwndFrame, wMaxFrame
 
 
 class MainWindow(QtWidgets.QMainWindow): # main view
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame = loadData(self.args)
+        self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame, self.wMaxFrame = loadData(self.args)
         self.layoutWidget = pg.GraphicsLayoutWidget()
         self.layoutWidget.setBackground("w")
         self.setCentralWidget(self.layoutWidget)
@@ -171,8 +172,6 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
 
     def drawGraph(self):
-        global plotItem1, view2, view3, view4
-
         # self.plotGraph = pg.PlotWidget()
         # self.setCentralWidget(self.plotGraph)
         # self.plotGraph.showGrid(x=True, y=True)
@@ -224,6 +223,14 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         axis4.setLabel("CWnd", units="Bytes")
         view4.setXLink(plotItem1)
 
+        view6 = pg.ViewBox()
+        axis6 = pg.AxisItem("right")
+        pgLayout.addItem(axis6, 1, 6, 2, 1)
+        pgLayout.scene().addItem(view6)
+        axis6.linkToView(view6)
+        axis6.setLabel("W_max", units="Bytes")
+        view6.setXLink(plotItem1)
+        view6.setYLink(view4)
 
         plotItem1.axis_bottom = plotItem1.getAxis("bottom")
         pgLayout.addItem(plotItem1.axis_bottom, 3, 3, 2, 1)
@@ -235,16 +242,19 @@ class MainWindow(QtWidgets.QMainWindow): # main view
             view2.setGeometry(plotItem1.vb.sceneBoundingRect())
             view3.setGeometry(plotItem1.vb.sceneBoundingRect())
             view4.setGeometry(plotItem1.vb.sceneBoundingRect())
+            view6.setGeometry(plotItem1.vb.sceneBoundingRect())
             ## need to re-update linked axes since this was called
             ## incorrectly while views had different shapes.
             ## (probably this should be handled in ViewBox.resizeEvent)
             view2.linkedViewChanged(plotItem1.vb, view2.XAxis)
             view3.linkedViewChanged(plotItem1.vb, view3.XAxis)
             view4.linkedViewChanged(plotItem1.vb, view4.XAxis)
+            view6.linkedViewChanged(plotItem1.vb, view6.XAxis)
         
         view2.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
         view3.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
         view4.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
+        view6.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
 
         updateViews()
         plotItem1.vb.sigResized.connect(updateViews)
@@ -260,16 +270,23 @@ class MainWindow(QtWidgets.QMainWindow): # main view
             self.cwndFrame["time"].values.flatten(),
             self.cwndFrame["cwnd"].values.flatten(),
             pen="m",)
+        wMaxItem = pg.PlotCurveItem(
+            self.wMaxFrame["time"].values.flatten(),
+            self.wMaxFrame["wMax"].values.flatten(),
+            pen="k",)
+
 
         view1.addItem(spinItem)
         view2.addItem(throughputItem)
         view3.addItem(lossItem)
         view4.addItem(cwndItem)
+        view6.addItem(wMaxItem)
 
         legend.addItem(spinItem, "Spin bit")
         legend.addItem(lossItem, "Lost")
         legend.addItem(throughputItem, "Throughput")
         legend.addItem(cwndItem, "CWnd")
+        legend.addItem(wMaxItem, "W_max")
 
 
 class PyPlotGraph:
