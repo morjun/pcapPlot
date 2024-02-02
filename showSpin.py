@@ -52,6 +52,10 @@ def loadData(args):
                     if packet.udp.srcport == str(port):  # 서버가 전송한 패킷만
                         time = packet.sniff_time.timestamp() - initialTime
                         spin = packet.quic.spin_bit
+                        if spin == "True":
+                            spin = 1
+                        else: # False
+                            spin = 0
                         if prevSpin != spin:
                             numSpin += 1
                             if prevTime != 0:
