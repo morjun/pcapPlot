@@ -13,13 +13,26 @@ import matplotlib
 import pyqtgraph as pg
 from PyQt5 import QtWidgets
 
+QUIC_TRACE_PACKET_LOSS_RACK = 0
+QUIC_TRACE_PACKET_LOSS_FACK = 1
+QUIC_TRACE_PACKET_LOSS_PROBE = 2
+
 def loadData(args):
     times = np.array([], dtype=float)
-    lostTimes = np.array([], dtype=float)
+    lostTimes = {
+        QUIC_TRACE_PACKET_LOSS_RACK: np.array([], dtype=float),
+        QUIC_TRACE_PACKET_LOSS_FACK: np.array([], dtype=float),
+        QUIC_TRACE_PACKET_LOSS_PROBE: np.array([], dtype=float),
+    }
+
     cwndTimes = np.array([], dtype=float)
     wMaxTimes = np.array([], dtype=float)
 
-    losses = np.array([], dtype=int)
+    losses = {
+        QUIC_TRACE_PACKET_LOSS_RACK: np.array([], dtype=int),
+        QUIC_TRACE_PACKET_LOSS_FACK: np.array([], dtype=int),
+        QUIC_TRACE_PACKET_LOSS_PROBE: np.array([], dtype=int),
+    }
     spins = np.array([], dtype=int)
     rtts = np.array([], dtype=float)
     cwnds = np.array([], dtype=int)
@@ -27,9 +40,9 @@ def loadData(args):
 
     initialTime = 0
     initialSpinTime = 0
-    prevSpin = -1 # 처음 Short Header Packet 감지용 
+    prevSpin = -1  # 처음 Short Header Packet 감지용
     prevTime = 0
-    numSpin = -1 # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
+    numSpin = -1  # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
     spinFrame = None
 
     ports = {"interop": 4433, "samplequic": 4567}
@@ -47,14 +60,16 @@ def loadData(args):
         for packet in cap:
             if hasattr(packet, "quic"):
                 if initialTime == 0:  # int
-                    initialTime = packet.sniff_time.timestamp() #Initial 패킷의 전송을 기준 시각으로
+                    initialTime = (
+                        packet.sniff_time.timestamp()
+                    )  # Initial 패킷의 전송을 기준 시각으로
                 if hasattr(packet.quic, "spin_bit"):
                     if packet.udp.srcport == str(port):  # 서버가 전송한 패킷만
                         time = packet.sniff_time.timestamp() - initialTime
                         spin = packet.quic.spin_bit
                         if spin == "True":
                             spin = 1
-                        else: # False
+                        else:  # False
                             spin = 0
                         if prevSpin != spin:
                             numSpin += 1
@@ -80,7 +95,9 @@ def loadData(args):
         for line in lines:
             timeString = str(line.split("]")[2].replace("[", ""))
             if "[S][RX][0] LH Ver:" in line and "Type:I" in line:
-                initialLogTime = datetime.strptime(timeString, "%H:%M:%S.%f") # Initial 패킷의 전송을 기준 시각으로
+                initialLogTime = datetime.strptime(
+                    timeString, "%H:%M:%S.%f"
+                )  # Initial 패킷의 전송을 기준 시각으로
             else:
                 if initialLogTime == 0:
                     continue
@@ -88,10 +105,9 @@ def loadData(args):
                     datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
                 ).total_seconds()
                 if "Lost: " in line and "[conn]" in line:
-                    lossCount = int(line.split("Lost: ")[1].split(" ")[0])
-                    if lossCount > 0:
-                        lostTimes = np.append(lostTimes, float(logTime))
-                        losses = np.append(losses, int(lossCount))
+                    lossReason = int(line.split("Lost: ")[1].split(" ")[0])
+                    lostTimes[int(lossReason)] = np.append(lostTimes[int(lossReason)], float(logTime))
+                    losses[int(lossReason)] = np.append(losses[int(lossReason)], 1)
                 elif "OUT: " in line and "CWnd=" in line:
                     cwnd = int(line.split("CWnd=")[1].split(" ")[0])
                     cwnds = np.append(cwnds, int(cwnd))
@@ -101,23 +117,22 @@ def loadData(args):
                     wMaxes = np.append(wMaxes, int(wMax))
                     wMaxTimes = np.append(wMaxTimes, float(logTime))
 
-
     throughputFrame["All Packets"] = [
         # (x * 8 / 1000000) / throughputFrame["Interval start"][1]
         (x * 8) / throughputFrame["Interval start"][1]
         for x in throughputFrame["All Packets"]
     ]  # Bp100ms -> Mbps
-    lostFrame = pd.DataFrame({"time": lostTimes, "loss": losses})
-    cwndFrame = pd.DataFrame({"time" : cwndTimes, "cwnd": cwnds})
-    wMaxFrame = pd.DataFrame({"time" : wMaxTimes, "wMax": wMaxes})
-    avgThroughput = statistics.mean(throughputFrame['All Packets'])/1000000
+    lostFrames = {i:(pd.DataFrame({"time": lostTimes[i], "loss": losses[i]})) for i in range(3) if len(lostTimes[i]) > 0}
+    cwndFrame = pd.DataFrame({"time": cwndTimes, "cwnd": cwnds})
+    wMaxFrame = pd.DataFrame({"time": wMaxTimes, "wMax": wMaxes})
+    avgThroughput = statistics.mean(throughputFrame["All Packets"]) / 1000000
 
     if prevTime > 0:
         spinFrequency = numSpin / (2 * (prevTime - initialSpinTime))
         print(f"첫 short packet time: {initialSpinTime}초")
         print(f"마지막 spin time: {prevTime}초")
         print(f"평균 spin frequency: {spinFrequency}Hz")
-    if (numSpin >= 0):
+    if numSpin >= 0:
         print(f"총 spin 수 : {numSpin}")
         print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}초")
 
@@ -126,12 +141,14 @@ def loadData(args):
 
     if args.bandwidth >= 0 and prevTime > 0:
         with open("stats.csv", "a") as f:
-            f.write(f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}, {avgThroughput}, {sum(losses)}\n")
-    
-    lostFrame.to_csv(f"{args.file[0]}_lost.csv", index=False)
+            f.write(
+                f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}, {avgThroughput}, {sum(losses)}\n"
+            )
+    for i in range(3):
+        lostFrames[i].to_csv(f"{args.file[0]}_lost_{i}.csv", index=False)
     cwndFrame.to_csv(f"{args.file[0]}_cwnd.csv", index=False)
     wMaxFrame.to_csv(f"{args.file[0]}_wMax.csv", index=False)
-    
+
     # cf1 = pd.merge_asof(spinFrame, lostFrame, on="time", direction="nearest", tolerance=0.01)
     # cf2 = pd.merge_asof(lostFrame, spinFrame, on="time", direction="nearest", tolerance=0.01)
     # cf3 = pd.concat([cf1, cf2[cf2['loss'].isnull()]]).sort_index()
@@ -141,27 +158,33 @@ def loadData(args):
     # combinedFrame = pd.merge_asof(combinedFrame, cwndFrame, on="time", direction="nearest")
     # combinedFrame.to_csv(f"{args.file[0]}_combined.csv", index=False)
 
-    return spinFrame, throughputFrame, lostFrame, cwndFrame, wMaxFrame
+    return spinFrame, throughputFrame, lostFrames, cwndFrame, wMaxFrame
 
 
-class MainWindow(QtWidgets.QMainWindow): # main view
+class MainWindow(QtWidgets.QMainWindow):  # main view
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame, self.wMaxFrame = loadData(self.args)
+        (
+            self.spinFrame,
+            self.throughputFrame,
+            self.lostFrames,
+            self.cwndFrame,
+            self.wMaxFrame,
+        ) = loadData(self.args)
         self.layoutWidget = pg.GraphicsLayoutWidget()
         self.layoutWidget.setBackground("w")
         self.setCentralWidget(self.layoutWidget)
         # layoutWidget.showGrid(x=True, y=True)
         # self.plotGraph.show()
         # self.plotGraph.clear()
-        #Set window name
+        # Set window name
         self.setWindowTitle(self.args.file[0])
 
         self.drawGraph()
         self.drawTCGraph()
         self.show()
-    
+
     def drawTCGraph(self):
         plotItem2 = pg.PlotItem()
         view5 = plotItem2.getViewBox()
@@ -170,10 +193,17 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         plotItem2.setLabel("bottom", "CWnd", units="Bytes")
         throughput2 = self.throughputFrame.rename(columns={"Interval start": "time"})
         print(throughput2)
-        ctFrame = pd.merge_asof(self.cwndFrame, throughput2, on="time", direction = "nearest", tolerance=0.01)
+        ctFrame = pd.merge_asof(
+            self.cwndFrame, throughput2, on="time", direction="nearest", tolerance=0.01
+        )
         print(ctFrame)
-        view5.addItem(pg.ScatterPlotItem(ctFrame["cwnd"].values.flatten(), ctFrame["All Packets"].values.flatten(), pen="b"))
-
+        view5.addItem(
+            pg.ScatterPlotItem(
+                ctFrame["cwnd"].values.flatten(),
+                ctFrame["All Packets"].values.flatten(),
+                pen="b",
+            )
+        )
 
     def drawGraph(self):
         # self.plotGraph = pg.PlotWidget()
@@ -181,10 +211,9 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         # self.plotGraph.showGrid(x=True, y=True)
         # self.plotGraph.setBackground("w")
 
-        allTimes = np.append(self.spinFrame["time"], self.lostFrame["time"])
+        # allTimes = np.append(self.spinFrame["time"], self.lostFrames["time"])
         # self.plotGraph.getAxis("bottom").setTicks([[(time, f"{time:.6f}") for time in allTimes]])
         # self.plotGraph.getAxis("bottom").setticks()
-
 
         # plotItem1 = self.plotGraph.plotItem
         plotItem1 = pg.PlotItem()
@@ -201,7 +230,6 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         # blankAx.setPen("w")
         # layoutWidget.addItem(blankAx, 3, 1, 1, 4)
 
-
         view2 = pg.ViewBox()
         axis2 = pg.AxisItem("right")
         pgLayout.addItem(axis2, 1, 4, 2, 1)
@@ -211,11 +239,11 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         axis2.linkToView(view2)
 
         view3 = pg.ViewBox()
-        axis3 = pg.AxisItem("left")
-        pgLayout.addItem(axis3, 1, 1, 2, 1)
+        # axis3 = pg.AxisItem("left")
+        # pgLayout.addItem(axis3, 1, 1, 2, 1)
         pgLayout.scene().addItem(view3)
-        axis3.linkToView(view3)
-        axis3.setLabel("Lost", units="개")
+        # axis3.linkToView(view3)
+        # axis3.setLabel("Lost", units="개")
         view3.setXLink(plotItem1)
         view3.setYLink(plotItem1)
 
@@ -240,7 +268,6 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         pgLayout.addItem(plotItem1.axis_bottom, 3, 3, 2, 1)
         plotItem1.setLabel("bottom", "Time", units="s")
 
-        
         def updateViews():
             ## view has resized; update auxiliary views to match
             view2.setGeometry(plotItem1.vb.sceneBoundingRect())
@@ -254,7 +281,7 @@ class MainWindow(QtWidgets.QMainWindow): # main view
             view3.linkedViewChanged(plotItem1.vb, view3.XAxis)
             view4.linkedViewChanged(plotItem1.vb, view4.XAxis)
             view6.linkedViewChanged(plotItem1.vb, view6.XAxis)
-        
+
         view2.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
         view3.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
         view4.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
@@ -263,31 +290,66 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         updateViews()
         plotItem1.vb.sigResized.connect(updateViews)
 
-        spinItem = pg.PlotCurveItem(self.spinFrame["time"].values.flatten(), self.spinFrame["spin"].values.flatten(), pen="b")
+        spinItem = pg.PlotCurveItem(
+            self.spinFrame["time"].values.flatten(),
+            self.spinFrame["spin"].values.flatten(),
+            pen="b",
+        )
         throughputItem = pg.PlotCurveItem(
             self.throughputFrame["Interval start"].values.flatten(),
             self.throughputFrame["All Packets"].values.flatten(),
             pen="g",
         )
-        lossItem = pg.ScatterPlotItem(self.lostFrame["time"].values.flatten(), self.lostFrame["loss"].values.flatten(), pen="r", symbol="o", symbolPen = "r", symbolBrush = "r", symbolSize = 10)
+        lossItem0 = pg.ScatterPlotItem(
+            self.lostFrames[0]["time"].values.flatten(),
+            self.lostFrames[0]["loss"].values.flatten(),
+            pen="r",
+            symbol="o",
+            symbolPen="r",
+            symbolBrush="r",
+            symbolSize=10,
+        )
+        lossItem1 = pg.ScatterPlotItem(
+            self.lostFrames[1]["time"].values.flatten(),
+            self.lostFrames[1]["loss"].values.flatten(),
+            pen="c",
+            symbol="o",
+            symbolPen="c",
+            symbolBrush="c",
+            symbolSize=10,
+        )
+        lossItem2 = pg.ScatterPlotItem(
+            self.lostFrames[2]["time"].values.flatten(),
+            self.lostFrames[2]["loss"].values.flatten(),
+            pen="y",
+            symbol="o",
+            symbolPen="y",
+            symbolBrush="y",
+            symbolSize=10,
+        )
         cwndItem = pg.PlotCurveItem(
             self.cwndFrame["time"].values.flatten(),
             self.cwndFrame["cwnd"].values.flatten(),
-            pen="m",)
+            pen="m",
+        )
         wMaxItem = pg.PlotCurveItem(
             self.wMaxFrame["time"].values.flatten(),
             self.wMaxFrame["wMax"].values.flatten(),
-            pen="k",)
-
+            pen="k",
+        )
 
         view1.addItem(spinItem)
         view2.addItem(throughputItem)
-        view3.addItem(lossItem)
+        view3.addItem(lossItem0)
+        view3.addItem(lossItem1)
+        view3.addItem(lossItem2)
         view4.addItem(cwndItem)
         view6.addItem(wMaxItem)
 
         legend.addItem(spinItem, "Spin bit")
-        legend.addItem(lossItem, "Lost")
+        legend.addItem(lossItem0, "Lost: QUIC_TRACE_PACKET_LOSS_RACK")
+        legend.addItem(lossItem1, "Lost: QUIC_TRACE_PACKET_LOSS_FACK")
+        legend.addItem(lossItem2, "Lost: QUIC_TRACE_PACKET_LOSS_PROBE")
         legend.addItem(throughputItem, "Throughput")
         legend.addItem(cwndItem, "CWnd")
         legend.addItem(wMaxItem, "W_max")
@@ -295,7 +357,9 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
 class PyPlotGraph:
     def __init__(self, args):
-        self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame = loadData(args)
+        self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame = loadData(
+            args
+        )
 
     # 파일명.csv (throughput 기록), 파일명.pcapng (wireshark 패킷트레이스), 파일명.log(msquic log, loss 추적용) 필요
     def pyplotGraph(self):
@@ -358,9 +422,30 @@ def main():
     parser = argparse.ArgumentParser(description="Show spin bit")
     parser.add_argument("file", metavar="file", type=str, nargs=1)
 
-    parser.add_argument("-l", "--loss", type=float, default=0.0, help="loss rate of the link(%)", required=False)
-    parser.add_argument("-d", "--delay", type=int, default=0, help="delay of the link(ms)", required=False)
-    parser.add_argument("-b", "--bandwidth", type=int, default=-1, help="bandwidth of the link(Mbps)", required=False)
+    parser.add_argument(
+        "-l",
+        "--loss",
+        type=float,
+        default=0.0,
+        help="loss rate of the link(%)",
+        required=False,
+    )
+    parser.add_argument(
+        "-d",
+        "--delay",
+        type=int,
+        default=0,
+        help="delay of the link(ms)",
+        required=False,
+    )
+    parser.add_argument(
+        "-b",
+        "--bandwidth",
+        type=int,
+        default=-1,
+        help="bandwidth of the link(Mbps)",
+        required=False,
+    )
 
     args = parser.parse_args()
 
