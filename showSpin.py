@@ -456,8 +456,7 @@ def main():
     parser.add_argument(
         "-n",
         "--no-plot",
-        type=bool,
-        default=False,
+        action="store_true",
         help="Only update the data",
         required=False,
     )
