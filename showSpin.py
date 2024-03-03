@@ -453,13 +453,24 @@ def main():
         help="bandwidth of the link(Mbps)",
         required=False,
     )
+    parser.add_argument(
+        "-n",
+        "--no-plot",
+        type=bool,
+        default=False,
+        help="Only update the data",
+        required=False,
+    )
 
     args = parser.parse_args()
 
-    app = QtWidgets.QApplication([])
-    mainProgram = MainWindow(args)
-    app.exec()
-
+    if args.no_plot:
+        loadData(args)
+        return
+    else:
+        app = QtWidgets.QApplication([])
+        mainProgram = MainWindow(args)
+        app.exec()
 
 if __name__ == "__main__":
     main()
