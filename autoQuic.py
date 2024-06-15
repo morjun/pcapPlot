@@ -9,6 +9,7 @@ import platform
 import argparse
 import configparser
 import docker
+from time import sleep
 
 BANDWIDTH = 17
 
@@ -48,9 +49,13 @@ class QuicRunner:
             self.run_command_in_container(self.server,f"tc qdisc del dev eth1 root netem")
             self.run_command_in_container(self.server,f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {BANDWIDTH}mbit")
 
-            # 서버 컨테이너에 실행
+            # 서버 컨테이너 실행
+            # self.run_command_in_container(self.server,f"tcpdump -s 0 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Release_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light")
+
             exec_id = self.dockerClient.api.exec_create(self.server.id, f"tcpdump -s 0 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Release_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light", stdin=True, tty=True)
             sock = self.dockerClient.api.exec_start(exec_id, socket=True)
+
+            sleep(5)
 
             self.run_command_in_container(self.client,f"./artifacts/bin/linux/x64_Release_openssl/quicsample -client -unsecure -target:{self.serverIp}")
 
