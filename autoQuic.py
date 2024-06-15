@@ -17,6 +17,7 @@ class QuicRunner:
         self.server, self.client = self.runContainers()
     
     def run_command_in_container(self, container, command):
+            print(f"{container}에 명령 입력: {command}")
             exec_id = self.dockerClient.api.exec_create(container.id, command, stdout=True, stderr=True, stdin=False, tty=False, workdir="/root/network/quic/msquic")
             logs = self.dockerClient.api.exec_start(exec_id, stream=True)
             
@@ -37,14 +38,14 @@ class QuicRunner:
         ServerContainer.start()
         ClientContainer.start()
 
-        self.serverIp = self.dockerClient.containers.get("quicserver").attrs['NetworkSettings']['IPAddress']
+        self.serverIp = self.dockerClient.containers.get("quicserver").attrs['NetworkSettings']['Networks']['msquic_quicnet']['IPAddress']
         print(self.serverIp)
 
         return ServerContainer, ClientContainer
 
     def runQuic(self, lossRate, delay):
             filename = f"l{lossRate}b{BANDWIDTH}d{delay}"
-            self.run_command_in_container(self.server,f"tc qdisc del dev eth1 root")
+            self.run_command_in_container(self.server,f"tc qdisc del dev eth1 root netem")
             self.run_command_in_container(self.server,f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {BANDWIDTH}mbit")
 
             # 서버 컨테이너에 실행
