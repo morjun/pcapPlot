@@ -11,9 +11,6 @@ import configparser
 import docker
 
 BANDWIDTH = 17
-lossRates = range(0, 11, 1)
-# bitRatesinMbps = range(0, 100)
-delays = range(0, 200, 5)
 
 class QuicRunner:
     def __init__(self):
@@ -63,6 +60,10 @@ class QuicRunner:
 
 def main():
     lastValues = []
+    lossRates = range(0, 11, 1)
+    # bitRatesinMbps = range(0, 100)
+    delays = range(0, 200, 5)
+
     try:
         with open("lastValues.txt", "r") as f:
             lastValues = f.readlines()
