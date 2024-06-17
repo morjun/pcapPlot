@@ -162,6 +162,7 @@ def main():
             with open("lastValues.txt", "w") as f:
                 for value in lastValues:
                     f.write(str(value) + "\n")
+        delays = range(0, 200, 5) # 한바퀴 돌고 리셋
 
 if __name__ == '__main__':
     main()
