@@ -8,7 +8,9 @@ def loadData():
 
 def main():
     spinStatFrame = loadData()
-    fixedFrame = spinStatFrame[(spinStatFrame["bandwidth"] == 17) & (spinStatFrame["lossRate"] <= 3)]
+    fixedFrame = spinStatFrame[(spinStatFrame["bandwidth"] == 17) & (spinStatFrame["lossRate"] <= 10)]
+    # fixedFrame = spinStatFrame[(spinStatFrame["bandwidth"] == 17)]
+    # fixedFrame = spinStatFrame
 
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
