@@ -160,7 +160,44 @@ def loadData(args):
 def main():
     parser = argparse.ArgumentParser(description="Show spin bit")
     parser.add_argument("file", metavar="file", type=str, nargs=1)
+    parser.add_argument(
+        "-c",
+        "--csv",
+        action="store_true",
+        help="Additional csv handling",
+        required=False,
+    )
+    parser.add_argument(
+        "-l",
+        "--loss",
+        type=float,
+        default=0.0,
+        help="loss rate of the link(%)",
+        required=False,
+    )
+    parser.add_argument(
+        "-d",
+        "--delay",
+        type=int,
+        default=0,
+        help="delay of the link(ms)",
+        required=False,
+    )
+    parser.add_argument(
+        "-b",
+        "--bandwidth",
+        type=int,
+        default=-1,
+        help="bandwidth of the link(Mbps)",
+        required=False,
+    )
     args = parser.parse_args()
+    if args.csv:
+        tempFrame = pd.read_csv(f"{args.file[0]}.csv")
+        tempFrame = tempFrame[["Start", "Bytes"]]
+        tempFrame.rename(columns={"Start": "Interval start", "Bytes": "All Packets"}, inplace=True)
+        tempFrame.to_csv(f"{args.file[0]}.csv", index=False)
+
     loadData(args)
 
 
