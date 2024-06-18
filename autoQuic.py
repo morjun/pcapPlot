@@ -127,13 +127,13 @@ class QuicRunner:
 
             self.run_command_in_container(self.server,f"python loadSpinData.py -l {lossRate} -b {BANDWIDTH} -d {delay} -c {filename}")
 
-            self.run_command_in_container(self.server,f"mv {filename}.pcap /msquic_logs")
-            self.run_command_in_container(self.server,f"mv {filename}.log /msquic_logs")
-            self.run_command_in_container(self.server,f"mv {filename}_lost.csv /msquic_logs")
-            self.run_command_in_container(self.server,f"mv {filename}_spin.csv /msquic_logs")
-            self.run_command_in_container(self.server,f"mv {filename}_cwnd.csv /msquic_logs")
-            self.run_command_in_container(self.server,f"mv {filename}_wMax.csv /msquic_logs")
-            self.run_command_in_container(self.server,f"mv {filename}.csv /msquic_logs")
+            self.run_command_in_container(self.server,f"rm {filename}.pcap")
+            self.run_command_in_container(self.server,f"rm {filename}.log")
+            self.run_command_in_container(self.server,f"rm {filename}_lost.csv")
+            self.run_command_in_container(self.server,f"rm {filename}_spin.csv")
+            self.run_command_in_container(self.server,f"rm {filename}_cwnd.csv")
+            self.run_command_in_container(self.server,f"rm {filename}_wMax.csv")
+            self.run_command_in_container(self.server,f"rm {filename}.csv")
             self.run_command_in_container(self.server,f"rm -rf msquic_lttng0")
 
             self.run_command_in_container(self.server,f"tc qdisc del dev eth1 root")
