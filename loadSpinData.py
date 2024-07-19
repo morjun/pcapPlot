@@ -82,7 +82,8 @@ def loadData(args):
         initialLogTime = 0
         for line in lines:
             timeString = str(line.split("]")[2].replace("[", ""))
-            if "[S][RX][0] LH Ver:" in line and "Type:I" in line:
+            # if "[S][RX][0] LH Ver:" in line and "Type:I" in line: # 감지가 안 돼.. 어째서지?
+            if "Handshake start" in line:
                 initialLogTime = datetime.strptime(
                     timeString, "%H:%M:%S.%f"
                 )  # Initial 패킷의 전송을 기준 시각으로
@@ -130,8 +131,10 @@ def loadData(args):
         print(f"총 spin 수 : {numSpin}")
         print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}초")
 
+    numLosses = len(lostFrame['loss'])
+
     print(f"평균 throughput: {avgThroughput}Mbps")
-    print(f"Lost 개수: {len(lostFrame['loss'])}개")
+    print(f"Lost 개수: {numLosses}개")
     print(f"Loss reason 0: {len(lostFrame[lostFrame['loss'] == 0])}개")
     print(f"Loss reason 1: {len(lostFrame[lostFrame['loss'] == 1])}개")
     print(f"Loss reason 2: {len(lostFrame[lostFrame['loss'] == 2])}개")
@@ -139,7 +142,7 @@ def loadData(args):
     if args.bandwidth >= 0 and prevTime > 0:
         with open("stats.csv", "a") as f:
             f.write(
-                f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}, {avgThroughput}, {sum(lossReasons)}\n"
+                f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}, {avgThroughput}, {numLosses}\n"
             )
 
     lostFrame.to_csv(f"{args.file[0]}_lost.csv", index=False)
