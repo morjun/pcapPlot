@@ -91,6 +91,16 @@ class QuicRunner:
             self.delay = delay
 
             filename = f"l{lossRate}b{BANDWIDTH}d{delay}"
+
+            self.run_command_in_container(self.server,f"rm -rf msquic_lttng*")
+            self.run_command_in_container(self.server,f"rm l*b*d*.pcap")
+            self.run_command_in_container(self.server,f"rm l*b*d*.log")
+            self.run_command_in_container(self.server,f"rm l*b*d*_lost.csv")
+            self.run_command_in_container(self.server,f"rm l*b*d*_spin.csv")
+            self.run_command_in_container(self.server,f"rm l*b*d*_cwnd.csv")
+            self.run_command_in_container(self.server,f"rm l*b*d*_wMax.csv")
+            self.run_command_in_container(self.server,f"rm l*b*d*.csv")
+
             self.run_command_in_container(self.server,f"tc qdisc del dev eth1 root netem")
             self.run_command_in_container(self.server,f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {BANDWIDTH}mbit")
 
