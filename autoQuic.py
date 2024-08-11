@@ -19,11 +19,12 @@ from datetime import datetime
 import pyshark
 import statistics
 
-BANDWIDTH = 17
+# BANDWIDTH = 17
 
 class QuicRunner:
-    def __init__(self):
+    def __init__(self, args):
         self.server, self.client = self.runContainers()
+        self.args = args
     
     def run_command_in_container(self, container, command, stream = True, stdin=False, tty=False, detach=False, wildcard = False):
             if wildcard:
@@ -102,7 +103,7 @@ class QuicRunner:
             self.lossRate = lossRate
             self.delay = delay
 
-            filename = f"l{lossRate}b{BANDWIDTH}d{delay}"
+            filename = f"l{lossRate}b{self.args.bandwidth}d{delay}"
 
             self.run_command_in_container(self.server,f"rm -rf msquic_lttng*", wildcard=True)
             self.run_command_in_container(self.server,f"rm l*b*d*.pcap", wildcard=True)
@@ -114,7 +115,10 @@ class QuicRunner:
             self.run_command_in_container(self.server,f"rm l*b*d*.csv", wildcard=True)
 
             self.run_command_in_container(self.server,f"tc qdisc del dev eth1 root netem")
-            self.run_command_in_container(self.server,f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {BANDWIDTH}mbit")
+            if self.args.bandwidth > 0:
+                self.run_command_in_container(self.server,f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit")
+            else:
+                self.run_command_in_container(self.server,f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms")
 
             # 서버 컨테이너 실행
             # self.run_command_in_container(self.server,f"tcpdump -s 0 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Release_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light")
@@ -153,7 +157,7 @@ class QuicRunner:
 | grep -P \"\\d+\\.?\\d*\\s+<>\\s+|Interval +\\|\" \
 | tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename}.csv\'""")
 
-            self.run_command_in_container(self.server,f"python loadSpinData.py -l {lossRate} -b {BANDWIDTH} -d {delay} -c {filename}")
+            self.run_command_in_container(self.server,f"python loadSpinData.py -l {lossRate} -b {self.args.bandwidth} -d {delay} -c {filename}")
 
             self.run_command_in_container(self.server,f"rm {filename}.pcap")
             self.run_command_in_container(self.server,f"rm {filename}.log")
@@ -167,6 +171,11 @@ class QuicRunner:
             self.run_command_in_container(self.server,f"tc qdisc del dev eth1 root")
 
 def main():
+
+    parser = argparse.ArgumentParser(description="Run Quic")
+    parser.add_argument("-b", "--bandwidth", type=int, default=17, help="Bandwidth in Mbps", required=False)
+    args = parser.parse_args()
+
     lastValues = []
     lossRates = range(0, 11, 1)
     # bitRatesinMbps = range(0, 100)
@@ -180,7 +189,7 @@ def main():
     except FileNotFoundError:
         pass
 
-    runner = QuicRunner()
+    runner = QuicRunner(args)
     for lossRate in lossRates:
         for delay in delays:
             print("Running for loss rate: " + str(lossRate) + " and delay: " + str(delay))
