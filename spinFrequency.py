@@ -6,6 +6,11 @@ import argparse
 import pyqtgraph as pg
 from PyQt5 import QtWidgets
 
+# FIXED_BANDWIDTH = 17000000
+FIXED_BANDWIDTH = 0
+FIXED_LOSSRATE = 0.45
+FIXED_DELAY = 0.033
+
 def loadData():
     spinStatFrame = pd.read_csv("stats.csv")
     return spinStatFrame
@@ -40,10 +45,6 @@ class MainWindow(QtWidgets.QMainWindow): # main view
 
         self.xAxes = {0: "lossRate", 1: "bandwidth", 2: "delay"}
         self.units = {"lossRate": "%", "bandwidth": "bps", "delay": "s", "spinFreq": "Hz"}
-
-        FIXED_BANDWIDTH = 17000000
-        FIXED_LOSSRATE = 0.45
-        FIXED_DELAY = 0.033
 
         textSet = {0: f"Bandwidth: {FIXED_BANDWIDTH/1000000}Mbps\n Delay: {FIXED_DELAY*1000}ms",
                 1: f"Loss Rate: {FIXED_LOSSRATE}%\n Delay: {FIXED_DELAY*1000}ms",
