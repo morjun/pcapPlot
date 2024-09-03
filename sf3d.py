@@ -8,7 +8,8 @@ def loadData():
 
 def main():
     spinStatFrame = loadData()
-    fixedFrame = spinStatFrame[(spinStatFrame["bandwidth"] == 17) & (spinStatFrame["lossRate"] <= 10)]
+    fixedFrame = spinStatFrame[(spinStatFrame["bandwidth"] == 0) & (spinStatFrame["lossRate"] <= 10) &  (spinStatFrame["spinFreq"] <= 1000)]
+    # fixedFrame = spinStatFrame[(spinStatFrame["bandwidth"] == 0) & (spinStatFrame["lossRate"] <= 10)]
     # fixedFrame = spinStatFrame[(spinStatFrame["bandwidth"] == 17)]
     # fixedFrame = spinStatFrame
 

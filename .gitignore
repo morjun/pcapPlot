@@ -2,7 +2,7 @@
 *.pcap
 *.csv
 *.log
-*.png
+# *.png
 *.zip
 *.pdf
 *.txt
