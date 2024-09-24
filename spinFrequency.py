@@ -6,10 +6,12 @@ import argparse
 import pyqtgraph as pg
 from PyQt5 import QtWidgets
 
-# FIXED_BANDWIDTH = 17000000
-FIXED_BANDWIDTH = 0
+FIXED_BANDWIDTH = 17000000
+# FIXED_BANDWIDTH = 0
 FIXED_LOSSRATE = 0.45
 FIXED_DELAY = 0.033
+
+LOSSRATE_THRESHOLD = 0.5
 
 def loadData():
     spinStatFrame = pd.read_csv("stats.csv")
@@ -76,11 +78,11 @@ class MainWindow(QtWidgets.QMainWindow): # main view
         combinedBoxFrame = pd.DataFrame(columns=["spinFreq", "avgThroughput", "top", "bottom"])
         for i in range(0, 2):
             if i == 0:
-                self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & ((self.spinStatFrame["lossRate"] >= 0.5) & (self.spinStatFrame["delay"] <= FIXED_DELAY))]
-                # self.fixedFrame = self.spinStatFrame[((self.spinStatFrame["lossRate"] >= 0.5) & (self.spinStatFrame["delay"] <= FIXED_DELAY))]
+                self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & ((self.spinStatFrame["lossRate"] >= LOSSRATE_THRESHOLD) & (self.spinStatFrame["delay"] <= FIXED_DELAY))]
+                # self.fixedFrame = self.spinStatFrame[((self.spinStatFrame["lossRate"] >= LOSSRATE_THRESHOLD) & (self.spinStatFrame["delay"] <= FIXED_DELAY))]
             else:
-                self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & ((self.spinStatFrame["lossRate"] < 0.5) & (self.spinStatFrame["delay"] > FIXED_DELAY))]
-                # self.fixedFrame = self.spinStatFrame[((self.spinStatFrame["lossRate"] < 0.5) & (self.spinStatFrame["delay"] > FIXED_DELAY))]
+                self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH) & ((self.spinStatFrame["lossRate"] < LOSSRATE_THRESHOLD) & (self.spinStatFrame["delay"] > FIXED_DELAY))]
+                # self.fixedFrame = self.spinStatFrame[((self.spinStatFrame["lossRate"] < LOSSRATE_THRESHOLD) & (self.spinStatFrame["delay"] > FIXED_DELAY))]
             # self.fixedFrame = self.spinStatFrame[(self.spinStatFrame["bandwidth"] == FIXED_BANDWIDTH)]
 
             print(self.fixedFrame)
@@ -112,13 +114,13 @@ class MainWindow(QtWidgets.QMainWindow): # main view
                 medians = pg.ScatterPlotItem(x=self.boxFrame["spinFreq"].values.flatten(), y=self.boxFrame["avgThroughput"].values.flatten(), pen = "r", brush = "r", symbol = "o")
                 self.view1.addItem(samples)
                 self.view1.addItem(medians)
-                self.legend.addItem(samples, "Loss율 0.5% 이상 Delay 33ms 이하 표본")
+                self.legend.addItem(samples, f"Loss율 {LOSSRATE_THRESHOLD}% 이상 Delay 33ms 이하 표본")
             else:
                 samples = pg.ScatterPlotItem(x=self.fixedFrame["spinFreq"].values.flatten(), y=self.fixedFrame["avgThroughput"].values.flatten(), pen = "m", symbol = "star", size = 15, name = "No Loss")
                 medians = pg.ScatterPlotItem(x=self.boxFrame["spinFreq"].values.flatten(), y=self.boxFrame["avgThroughput"].values.flatten(), pen = "r", brush = "r", symbol = "star", size = 15)
                 self.view1.addItem(samples)
                 self.view1.addItem(medians)
-                self.legend.addItem(samples, "Loss율 0.5% 미만 Delay 33ms 초과 표본")
+                self.legend.addItem(samples, f"Loss율 {LOSSRATE_THRESHOLD}% 미만 Delay 33ms 초과 표본")
                 self.view1.addItem(pg.PlotCurveItem(x=combinedBoxFrame["spinFreq"].values.flatten(), y=combinedBoxFrame["avgThroughput"].values.flatten(), pen = "g", symbol = "o"))
 
             self.legend.addItem(medians, "Median")
