@@ -1,15 +1,13 @@
-import pyshark
-
-import matplotlib.pyplot as plt
-from matplotlib import ticker
-import numpy as np
-import pandas as pd
-import statistics
 
 import argparse
-from datetime import datetime
 
 import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib import ticker
+
+import pandas as pd
+
+
 import pyqtgraph as pg
 from PyQt5 import QtWidgets
 from loadSpinData import loadData
@@ -220,7 +218,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
 
 class PyPlotGraph:
     def __init__(self, args):
-        self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame = loadData(
+        self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame, _ = loadData(
             args
         )
 
@@ -284,31 +282,6 @@ class PyPlotGraph:
 def main():
     parser = argparse.ArgumentParser(description="Show spin bit")
     parser.add_argument("file", metavar="file", type=str, nargs=1)
-
-    parser.add_argument(
-        "-l",
-        "--loss",
-        type=float,
-        default=0.0,
-        help="loss rate of the link(%)",
-        required=False,
-    )
-    parser.add_argument(
-        "-d",
-        "--delay",
-        type=int,
-        default=0,
-        help="delay of the link(ms)",
-        required=False,
-    )
-    parser.add_argument(
-        "-b",
-        "--bandwidth",
-        type=int,
-        default=-1,
-        help="bandwidth of the link(Mbps)",
-        required=False,
-    )
 
     args = parser.parse_args()
 
