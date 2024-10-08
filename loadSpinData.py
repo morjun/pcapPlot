@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import statistics
 import argparse
+import os
+import re
 from datetime import datetime
 
 QUIC_TRACE_PACKET_LOSS_RACK = 0
@@ -28,21 +30,43 @@ def loadData(args):
     numSpin = -1  # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
     spinFrame = None
 
-    ports = {"interop": 4433, "samplequic": 4567}
+    full_path = args.file[0]
+    full_path = os.path.relpath(full_path)
+
+    splitted_path = os.path.split(full_path)
+
+    filename_prefix = splitted_path[-1]
+    print(f"filename prefix: {filename_prefix}")
+
+    filename_reg = r"l(\d+(.\d+)?)b(\d+)d(\d+)"
+    filename_reg = re.compile(filename_reg)
+    filename_match = filename_reg.match(filename_prefix)
+    
+    loss = float(filename_match.group(1))
+    bandwidth = int(filename_match.group(3))
+    delay = int(filename_match.group(4))
+
+    print(f"loss: {loss}, bandwidth: {bandwidth}, delay: {delay}")
+
+    full_path = os.path.join(splitted_path[0],filename_prefix.split("_")[0])
+    os.chdir(full_path)
+    print(f"full path: {full_path}")
+
+    file_ports = {"interop": 4433, "samplequic": 4567}
     port = 0
-    if args.file[0] not in ports:
+    if filename_prefix not in file_ports:
         port = 4567
     else:
-        port = ports[args.file[0]]
+        port = file_ports[filename_prefix]
 
     try:
-        spinFrame = pd.read_csv(f"{args.file[0]}_spin.csv")
+        spinFrame = pd.read_csv(f"{filename_prefix}_spin.csv")
     except FileNotFoundError:
         cap = None
         try:
-            cap = pyshark.FileCapture(f"{args.file[0]}.pcapng")
+            cap = pyshark.FileCapture(f"{filename_prefix}.pcapng")
         except FileNotFoundError:
-            cap = pyshark.FileCapture(f"{args.file[0]}.pcap")
+            cap = pyshark.FileCapture(f"{filename_prefix}.pcap")
         loadStartTime = datetime.now()
         for packet in cap:
             if hasattr(packet, "quic"):
@@ -74,10 +98,10 @@ def loadData(args):
                             print(f"{packet.number} packets processed")
         print(f"load time: {datetime.now() - loadStartTime}")
         spinFrame = pd.DataFrame({"time": times, "spin": spins})
-        spinFrame.to_csv(f"{args.file[0]}_spin.csv", index=False)
+        spinFrame.to_csv(f"{filename_prefix}_spin.csv", index=False)
 
-    throughputFrame = pd.read_csv(f"{args.file[0]}.csv")
-    with open(f"{args.file[0]}.log") as f:
+    throughputFrame = pd.read_csv(f"{filename_prefix}.csv")
+    with open(f"{filename_prefix}.log", encoding="utf8") as f:
         lines = f.readlines()
         initialLogTime = 0
         for line in lines:
@@ -139,15 +163,15 @@ def loadData(args):
     print(f"Loss reason 1: {len(lostFrame[lostFrame['loss'] == 1])}개")
     print(f"Loss reason 2: {len(lostFrame[lostFrame['loss'] == 2])}개")
 
-    if args.bandwidth >= 0 and prevTime > 0:
-        with open("stats.csv", "a") as f:
+    if bandwidth >= 0 and prevTime > 0:
+        with open("stats.csv", "a", encoding="utf8") as f:
             f.write(
-                f"{args.loss}, {args.bandwidth}, {args.delay}, {spinFrequency}, {avgThroughput}, {numLosses}\n"
+                f"{loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}\n"
             )
 
-    lostFrame.to_csv(f"{args.file[0]}_lost.csv", index=False)
-    cwndFrame.to_csv(f"{args.file[0]}_cwnd.csv", index=False)
-    wMaxFrame.to_csv(f"{args.file[0]}_wMax.csv", index=False)
+    lostFrame.to_csv(f"{filename_prefix}_lost.csv", index=False)
+    cwndFrame.to_csv(f"{filename_prefix}_cwnd.csv", index=False)
+    wMaxFrame.to_csv(f"{filename_prefix}_wMax.csv", index=False)
 
     # cf1 = pd.merge_asof(spinFrame, lostFrame, on="time", direction="nearest", tolerance=0.01)
     # cf2 = pd.merge_asof(lostFrame, spinFrame, on="time", direction="nearest", tolerance=0.01)
@@ -156,7 +180,7 @@ def loadData(args):
 
     # combinedFrame = pd.merge_asof(spinFrame, lostFrame, on="time", direction="nearest")
     # combinedFrame = pd.merge_asof(combinedFrame, cwndFrame, on="time", direction="nearest")
-    # combinedFrame.to_csv(f"{args.file[0]}_combined.csv", index=False)
+    # combinedFrame.to_csv(f"{filename}_combined.csv", index=False)
 
     return spinFrame, throughputFrame, lostFrame, cwndFrame, wMaxFrame
 
@@ -167,39 +191,18 @@ def main():
         "-c",
         "--csv",
         action="store_true",
-        help="Additional csv handling",
+        help="Additional csv handling for tshark captured files",
         required=False,
     )
-    parser.add_argument(
-        "-l",
-        "--loss",
-        type=float,
-        default=0.0,
-        help="loss rate of the link(%)",
-        required=False,
-    )
-    parser.add_argument(
-        "-d",
-        "--delay",
-        type=int,
-        default=0,
-        help="delay of the link(ms)",
-        required=False,
-    )
-    parser.add_argument(
-        "-b",
-        "--bandwidth",
-        type=int,
-        default=-1,
-        help="bandwidth of the link(Mbps)",
-        required=False,
-    )
+
     args = parser.parse_args()
+    filename_prefix = args.file[0].split("/")[-1]
+
     if args.csv:
-        tempFrame = pd.read_csv(f"{args.file[0]}.csv")
+        tempFrame = pd.read_csv(f"{filename_prefix}.csv")
         tempFrame = tempFrame[["Start", "Bytes"]]
         tempFrame.rename(columns={"Start": "Interval start", "Bytes": "All Packets"}, inplace=True)
-        tempFrame.to_csv(f"{args.file[0]}.csv", index=False)
+        tempFrame.to_csv(f"{filename_prefix}.csv", index=False)
 
     loadData(args)
 
