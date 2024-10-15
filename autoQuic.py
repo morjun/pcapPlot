@@ -138,7 +138,7 @@ class QuicRunner:
         self.run_command_in_container(self.server, "rm l*b*d*_cwnd.csv", wildcard=True)
         self.run_command_in_container(self.server, "rm l*b*d*_wMax.csv", wildcard=True)
         self.run_command_in_container(self.server, "rm l*b*d*.csv", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*/", wildcard=True)
+        self.run_command_in_container(self.server, "rm -rf l*b*d*/", wildcard=True)
 
         self.run_command_in_container(self.server, "tc qdisc del dev eth1 root netem")
         if self.args.bandwidth > 0:
@@ -208,6 +208,7 @@ class QuicRunner:
             f"python loadSpinData.py -c ./{filename}",
         )
 
+        self.run_command_in_container(self.server, f"rm -rf {MSQUIC_LOG_PATH}/{filename}")
         self.run_command_in_container(self.server, f"mv -f {filename} {MSQUIC_LOG_PATH}/")
         self.run_command_in_container(self.server, "rm -rf msquic_lttng0")
 
@@ -221,8 +222,8 @@ def main():
     parser.add_argument(
         "-l",
         "--loss",
-        type=int,
-        default=-1,
+        type=float,
+        default=-1.0,
         help="Loss rate in percentage",
         required=False,
     )
@@ -262,7 +263,7 @@ def main():
     else:
         delays = range(0, 200, 5)
 
-    if args.loss == -1 and args.delay == -1:
+    if args.loss < 0 and args.delay < 0:
         try:
             with open("lastValues.txt", "r", encoding="utf-8") as f:
                 lastValues = f.readlines()
@@ -289,12 +290,12 @@ def main():
                     + " and delay: "
                     + str(delay)
                 )
-                if args.loss == -1 and args.delay == -1:
+                if args.loss < 0 and args.delay < 0:
                     lastValues = [lossRate, delay]
                     with open("lastValues.txt", "w", encoding="utf-8") as f:
                         for value in lastValues:
                             f.write(str(value) + "\n")
-            if args.loss == -1 and args.delay == -1:
+            if args.loss < 0 and args.delay < 0:
                 delays = range(0, 200, 5)  # 한바퀴 돌고 리셋
 
 

@@ -11,6 +11,7 @@ QUIC_TRACE_PACKET_LOSS_RACK = 0
 QUIC_TRACE_PACKET_LOSS_FACK = 1
 QUIC_TRACE_PACKET_LOSS_PROBE = 2
 
+
 def loadData(args):
     times = np.array([], dtype=float)
     lostTimes = np.array([], dtype=float)
@@ -30,6 +31,8 @@ def loadData(args):
     numSpin = -1  # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
     spinFrame = None
 
+    stats_file = open("stats.csv", "a", encoding="utf8")
+
     full_path = args.file[0]
     full_path = os.path.relpath(full_path)
 
@@ -41,16 +44,24 @@ def loadData(args):
     filename_reg = r"l(\d+(.\d+)?)b(\d+)d(\d+)"
     filename_reg = re.compile(filename_reg)
     filename_match = filename_reg.match(filename_prefix)
-    
+
     loss = float(filename_match.group(1))
     bandwidth = int(filename_match.group(3))
     delay = int(filename_match.group(4))
 
     print(f"loss: {loss}, bandwidth: {bandwidth}, delay: {delay}")
 
-    full_path = os.path.join(splitted_path[0],filename_prefix.split("_")[0])
+    full_path = os.path.join(splitted_path[0], filename_prefix.split("_")[0])
     os.chdir(full_path)
     print(f"full path: {full_path}")
+
+    if args.csv:
+        tempFrame = pd.read_csv(f"{filename_prefix}.csv")
+        tempFrame = tempFrame[["Start", "Bytes"]]
+        tempFrame.rename(
+            columns={"Start": "Interval start", "Bytes": "All Packets"}, inplace=True
+        )
+        tempFrame.to_csv(f"{filename_prefix}.csv", index=False)
 
     file_ports = {"interop": 4433, "samplequic": 4567}
     port = 0
@@ -143,7 +154,7 @@ def loadData(args):
 
     if prevTime > 0:
         print(prevTime, initialSpinTime)
-        if (prevTime != initialSpinTime):
+        if prevTime != initialSpinTime:
             spinFrequency = numSpin / (2 * (prevTime - initialSpinTime))
         else:
             print("DIVISON BY ZERO")
@@ -155,10 +166,10 @@ def loadData(args):
         print(f"총 spin 수 : {numSpin}")
         print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}초")
 
-    numLosses = len(lostFrame['loss'])
-    numRack = len(lostFrame[lostFrame['loss'] == QUIC_TRACE_PACKET_LOSS_RACK])
-    numFack = len(lostFrame[lostFrame['loss'] == QUIC_TRACE_PACKET_LOSS_FACK])
-    numProbe = len(lostFrame[lostFrame['loss'] == QUIC_TRACE_PACKET_LOSS_PROBE])
+    numLosses = len(lostFrame["loss"])
+    numRack = len(lostFrame[lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_RACK])
+    numFack = len(lostFrame[lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK])
+    numProbe = len(lostFrame[lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE])
 
     print(f"평균 throughput: {avgThroughput}Mbps")
     print(f"Lost 개수: {numLosses}개")
@@ -167,10 +178,9 @@ def loadData(args):
     print(f"Loss reason 2(QUIC_TRACE_PACKET_LOSS_PROBE): {numProbe}개")
 
     if bandwidth >= 0 and prevTime > 0:
-        with open("stats.csv", "a", encoding="utf8") as f:
-            f.write(
-                f"{loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe} \n"
-            )
+        stats_file.write(
+            f"{loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe} \n"
+        )
 
     lostFrame.to_csv(f"{filename_prefix}_lost.csv", index=False)
     cwndFrame.to_csv(f"{filename_prefix}_cwnd.csv", index=False)
@@ -185,7 +195,9 @@ def loadData(args):
     # combinedFrame = pd.merge_asof(combinedFrame, cwndFrame, on="time", direction="nearest")
     # combinedFrame.to_csv(f"{filename}_combined.csv", index=False)
 
+    stats_file.close()
     return spinFrame, throughputFrame, lostFrame, cwndFrame, wMaxFrame
+
 
 def main():
     parser = argparse.ArgumentParser(description="Show spin bit")
@@ -199,19 +211,6 @@ def main():
     )
 
     args = parser.parse_args()
-
-    full_path = args.file[0]
-    full_path = os.path.relpath(full_path)
-    splitted_path = os.path.split(full_path)
-    filename_prefix = splitted_path[-1]
-    print(f"filename prefix: {filename_prefix}")
-
-    if args.csv:
-        tempFrame = pd.read_csv(f"{filename_prefix}.csv")
-        tempFrame = tempFrame[["Start", "Bytes"]]
-        tempFrame.rename(columns={"Start": "Interval start", "Bytes": "All Packets"}, inplace=True)
-        tempFrame.to_csv(f"{filename_prefix}.csv", index=False)
-
     loadData(args)
 
 
