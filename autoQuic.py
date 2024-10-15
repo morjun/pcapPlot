@@ -199,19 +199,15 @@ class QuicRunner:
 | tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename}.csv\'""",
         )
 
+        self.run_command_in_container(self.server, f"mkdir {filename}")
+        self.run_command_in_container(self.server, f"mv {filename}.* {filename}/")
+
         self.run_command_in_container(
             self.server,
-            f"python loadSpinData.py -c {filename}",
+            f"python loadSpinData.py -c {filename}/",
         )
 
-        self.run_command_in_container(self.server, f"mkdir {MSQUIC_LOG_PATH}/{filename}")
-        self.run_command_in_container(self.server, f"mv {filename}.pcap {MSQUIC_LOG_PATH}/{filename}/")
-        self.run_command_in_container(self.server, f"mv {filename}.log {MSQUIC_LOG_PATH}/{filename}/")
-        self.run_command_in_container(self.server, f"mv {filename}_lost.csv {MSQUIC_LOG_PATH}/{filename}/")
-        self.run_command_in_container(self.server, f"mv {filename}_spin.csv {MSQUIC_LOG_PATH}/{filename}/")
-        self.run_command_in_container(self.server, f"mv {filename}_cwnd.csv {MSQUIC_LOG_PATH}/{filename}/")
-        self.run_command_in_container(self.server, f"mv {filename}_wMax.csv {MSQUIC_LOG_PATH}/{filename}/")
-        self.run_command_in_container(self.server, f"mv {filename}.csv {MSQUIC_LOG_PATH}/{filename}/")
+        self.run_command_in_container(self.server, f"mv {filename} {MSQUIC_LOG_PATH}/")
         self.run_command_in_container(self.server, "rm -rf msquic_lttng0")
 
         self.run_command_in_container(self.server, "tc qdisc del dev eth1 root")
