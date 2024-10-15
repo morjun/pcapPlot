@@ -199,7 +199,12 @@ def main():
     )
 
     args = parser.parse_args()
-    filename_prefix = args.file[0].split("/")[-1]
+
+    full_path = args.file[0]
+    full_path = os.path.relpath(full_path)
+    splitted_path = os.path.split(full_path)
+    filename_prefix = splitted_path[-1]
+    print(f"filename prefix: {filename_prefix}")
 
     if args.csv:
         tempFrame = pd.read_csv(f"{filename_prefix}.csv")

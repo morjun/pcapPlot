@@ -138,6 +138,7 @@ class QuicRunner:
         self.run_command_in_container(self.server, "rm l*b*d*_cwnd.csv", wildcard=True)
         self.run_command_in_container(self.server, "rm l*b*d*_wMax.csv", wildcard=True)
         self.run_command_in_container(self.server, "rm l*b*d*.csv", wildcard=True)
+        self.run_command_in_container(self.server, "rm l*b*d*/", wildcard=True)
 
         self.run_command_in_container(self.server, "tc qdisc del dev eth1 root netem")
         if self.args.bandwidth > 0:
@@ -200,14 +201,14 @@ class QuicRunner:
         )
 
         self.run_command_in_container(self.server, f"mkdir {filename}")
-        self.run_command_in_container(self.server, f"mv {filename}.* {filename}/")
+        self.run_command_in_container(self.server, f"mv -f {filename}.* {filename}/", wildcard=True)
 
         self.run_command_in_container(
             self.server,
-            f"python loadSpinData.py -c {filename}/",
+            f"python loadSpinData.py -c ./{filename}",
         )
 
-        self.run_command_in_container(self.server, f"mv {filename} {MSQUIC_LOG_PATH}/")
+        self.run_command_in_container(self.server, f"mv -f {filename} {MSQUIC_LOG_PATH}/")
         self.run_command_in_container(self.server, "rm -rf msquic_lttng0")
 
         self.run_command_in_container(self.server, "tc qdisc del dev eth1 root")
