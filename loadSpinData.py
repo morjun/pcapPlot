@@ -156,17 +156,20 @@ def loadData(args):
         print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}초")
 
     numLosses = len(lostFrame['loss'])
+    numRack = len(lostFrame[lostFrame['loss'] == QUIC_TRACE_PACKET_LOSS_RACK])
+    numFack = len(lostFrame[lostFrame['loss'] == QUIC_TRACE_PACKET_LOSS_FACK])
+    numProbe = len(lostFrame[lostFrame['loss'] == QUIC_TRACE_PACKET_LOSS_PROBE])
 
     print(f"평균 throughput: {avgThroughput}Mbps")
     print(f"Lost 개수: {numLosses}개")
-    print(f"Loss reason 0: {len(lostFrame[lostFrame['loss'] == 0])}개")
-    print(f"Loss reason 1: {len(lostFrame[lostFrame['loss'] == 1])}개")
-    print(f"Loss reason 2: {len(lostFrame[lostFrame['loss'] == 2])}개")
+    print(f"Loss reason 0(QUIC_TRACE_PACKET_LOSS_RACK): {numRack}개")
+    print(f"Loss reason 1(QUIC_TRACE_PACKET_LOSS_FACK): {numFack}개")
+    print(f"Loss reason 2(QUIC_TRACE_PACKET_LOSS_PROBE): {numProbe}개")
 
     if bandwidth >= 0 and prevTime > 0:
         with open("stats.csv", "a", encoding="utf8") as f:
             f.write(
-                f"{loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}\n"
+                f"{loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe} \n"
             )
 
     lostFrame.to_csv(f"{filename_prefix}_lost.csv", index=False)
