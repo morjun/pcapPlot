@@ -282,6 +282,14 @@ class PyPlotGraph:
 def main():
     parser = argparse.ArgumentParser(description="Show spin bit")
     parser.add_argument("file", metavar="file", type=str, nargs=1)
+    parser.add_argument(
+        "-c",
+        "--csv",
+        action="store_true",
+        help="Additional csv handling for tshark captured files",
+        default=False,
+        required=False,
+    )
 
     args = parser.parse_args()
 
