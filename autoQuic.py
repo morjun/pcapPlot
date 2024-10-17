@@ -211,7 +211,7 @@ class QuicRunner:
             f"python loadSpinData.py -c ./{filename_ext}",
         )
 
-        self.run_command_in_container(self.server, f"rm -rf {MSQUIC_LOG_PATH}/{filename}")
+        # self.run_command_in_container(self.server, f"rm -rf {MSQUIC_LOG_PATH}/{filename}")
         self.run_command_in_container(self.server, f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
         self.run_command_in_container(self.server, f"rm -rf {filename}")
         self.run_command_in_container(self.server, "rm -rf msquic_lttng0")
