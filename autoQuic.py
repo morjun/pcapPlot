@@ -127,6 +127,9 @@ class QuicRunner:
         self.delay = delay
 
         filename = f"l{lossRate}b{self.args.bandwidth}d{delay}"
+        filename_ext = filename
+        if self.number > 0:
+             filename_ext += f"_{self.number + 1}"
 
         self.run_command_in_container(
             self.server, "rm -rf msquic_lttng*", wildcard=True
@@ -157,7 +160,7 @@ class QuicRunner:
 
         # command = f"tcpdump -s 262144 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light"
         commands = [
-            f"tshark -i eth1 -w {filename}.pcap",
+            f"tshark -i eth1 -w {filename_ext}.pcap",
             "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light",
         ]
 
@@ -190,26 +193,27 @@ class QuicRunner:
         print("outputThread 종료")
 
         self.run_command_in_container(
-            self.server, f"mv msquic_lttng0/quic.log ./{filename}.log"
+            self.server, f"mv msquic_lttng0/quic.log ./{filename_ext}.log"
         )
         # log 파일이 정상적으로 옮겨지는 것까지는 확인 완료
         self.run_command_in_container(
             self.server,
-            f"""sh -c \'tshark -r {filename}.pcap -q -z io,stat,0.1 \
+            f"""sh -c \'tshark -r {filename_ext}.pcap -q -z io,stat,0.1 \
 | grep -P \"\\d+\\.?\\d*\\s+<>\\s+|Interval +\\|\" \
-| tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename}.csv\'""",
+| tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
         )
 
         self.run_command_in_container(self.server, f"mkdir {filename}")
-        self.run_command_in_container(self.server, f"mv -f {filename}.* {filename}/", wildcard=True)
+        self.run_command_in_container(self.server, f"mv -f {filename_ext}.* {filename}/", wildcard=True)
 
         self.run_command_in_container(
             self.server,
-            f"python loadSpinData.py -c ./{filename}",
+            f"python loadSpinData.py -c ./{filename_ext}",
         )
 
         self.run_command_in_container(self.server, f"rm -rf {MSQUIC_LOG_PATH}/{filename}")
-        self.run_command_in_container(self.server, f"mv -f {filename} {MSQUIC_LOG_PATH}/")
+        self.run_command_in_container(self.server, f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
+        self.run_command_in_container(self.server, f"rm -rf {filename}")
         self.run_command_in_container(self.server, "rm -rf msquic_lttng0")
 
         self.run_command_in_container(self.server, "tc qdisc del dev eth1 root")
@@ -275,6 +279,7 @@ def main():
     runner = QuicRunner(args)
     for i in range(args.number):
         print(f"Running test number {i+1}")
+        runner.number = i
         for lossRate in lossRates:
             for delay in delays:
                 print(
