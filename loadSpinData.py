@@ -207,6 +207,7 @@ def main():
         "--csv",
         action="store_true",
         help="Additional csv handling for tshark captured files",
+        default=False,
         required=False,
     )
 
