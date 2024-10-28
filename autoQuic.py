@@ -83,7 +83,7 @@ class QuicRunner:
         ServerContainer.start()
         ClientContainer.start()
 
-        self.serverIp = self.dockerClient.containers.get(quic_server_name).attrs[
+        self.serverIp = self.dockerClient.containers.get(self.quic_server_name).attrs[
             "NetworkSettings"
         ]["Networks"]["msquic_quicnet"]["IPAddress"]
         print(self.serverIp)
