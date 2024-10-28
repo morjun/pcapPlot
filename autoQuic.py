@@ -23,8 +23,8 @@ MSQUIC_LOG_PATH = "/msquic_logs"
 
 class QuicRunner:
     def __init__(self, args):
-        self.server, self.client = self.runContainers()
         self.args = args
+        self.server, self.client = self.runContainers()
 
     def run_command_in_container(
         self,
