@@ -71,8 +71,12 @@ class QuicRunner:
     def runContainers(self):
         self.dockerClient = docker.from_env()
 
-        ServerContainer = self.dockerClient.containers.get("quicserver")
-        ClientContainer = self.dockerClient.containers.get("quicclient")
+        if self.args.instance == 1:
+            ServerContainer = self.dockerClient.containers.get("quicserver")
+            ClientContainer = self.dockerClient.containers.get("quicclient")
+        else:
+            ServerContainer = self.dockerClient.containers.get(f"quicserver_{self.args.instance}")
+            ClientContainer = self.dockerClient.containers.get(f"quicclient_{self.args.instance}")
 
         ServerContainer.start()
         ClientContainer.start()
@@ -241,6 +245,10 @@ def main():
     )
     parser.add_argument(
         "-d", "--delay", type=int, default=-1, help="Delay in ms", required=False
+    )
+
+    parser.add_argument(
+        "-i", "--instance", type=int, default=1, help="QUIC Server & Client pair instance number", required=False
     )
 
     parser.add_argument(
