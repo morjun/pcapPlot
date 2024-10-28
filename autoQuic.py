@@ -70,18 +70,20 @@ class QuicRunner:
 
     def runContainers(self):
         self.dockerClient = docker.from_env()
-
         if self.args.instance == 1:
-            ServerContainer = self.dockerClient.containers.get("quicserver")
-            ClientContainer = self.dockerClient.containers.get("quicclient")
+            self.quic_server_name = "quicserver"
+            self.quic_client_name = "quicclient"
         else:
-            ServerContainer = self.dockerClient.containers.get(f"quicserver_{self.args.instance}")
-            ClientContainer = self.dockerClient.containers.get(f"quicclient_{self.args.instance}")
+            self.quic_server_name = f"quicserver_{self.args.instance}"
+            self.quic_client_name = f"quicclient_{self.args.instance}"
+
+        ServerContainer = self.dockerClient.containers.get(self.quic_server_name)
+        ClientContainer = self.dockerClient.containers.get(self.quic_client_name)
 
         ServerContainer.start()
         ClientContainer.start()
 
-        self.serverIp = self.dockerClient.containers.get("quicserver").attrs[
+        self.serverIp = self.dockerClient.containers.get(quic_server_name).attrs[
             "NetworkSettings"
         ]["Networks"]["msquic_quicnet"]["IPAddress"]
         print(self.serverIp)
