@@ -73,9 +73,11 @@ class QuicRunner:
         if self.args.instance == 1:
             self.quic_server_name = "quicserver"
             self.quic_client_name = "quicclient"
+            self.quic_network_name = "msquic_quicnet"
         else:
             self.quic_server_name = f"quicserver_{self.args.instance}"
             self.quic_client_name = f"quicclient_{self.args.instance}"
+            self.quic_network_name = f"msquic-{self.args.instance}_quicnet{self.args.instance}"
 
         ServerContainer = self.dockerClient.containers.get(self.quic_server_name)
         ClientContainer = self.dockerClient.containers.get(self.quic_client_name)
@@ -85,7 +87,7 @@ class QuicRunner:
 
         self.serverIp = self.dockerClient.containers.get(self.quic_server_name).attrs[
             "NetworkSettings"
-        ]["Networks"]["msquic_quicnet"]["IPAddress"]
+        ]["Networks"][self.quic_network_name]["IPAddress"]
         print(self.serverIp)
 
         return ServerContainer, ClientContainer
