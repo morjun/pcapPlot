@@ -8,8 +8,8 @@ from matplotlib import ticker
 import pandas as pd
 
 
-import pyqtgraph as pg
 from PyQt5 import QtWidgets
+import pyqtgraph as pg
 from loadSpinData import loadData
 
 QUIC_TRACE_PACKET_LOSS_RACK = 0
@@ -31,7 +31,11 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
         self.layoutWidget = pg.GraphicsLayoutWidget()
         self.layoutWidget.setBackground("w")
 
-        self.setCentralWidget(self.layoutWidget)
+        self.containerWidget = QtWidgets.QWidget()
+        self.layout = QtWidgets.QVBoxLayout(self.containerWidget)
+        self.layout.addWidget(self.layoutWidget)
+        self.setCentralWidget(self.containerWidget)
+
         # layoutWidget.showGrid(x=True, y=True)
         # self.plotGraph.show()
         # self.plotGraph.clear()
