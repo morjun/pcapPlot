@@ -73,7 +73,7 @@ class QuicRunner:
         if self.args.instance == 1:
             self.quic_server_name = "quicserver"
             self.quic_client_name = "quicclient"
-            self.quic_network_name = "msquic_quicnet"
+            self.quic_network_name = "quicnet"
         else:
             self.quic_server_name = f"quicserver_{self.args.instance}"
             self.quic_client_name = f"quicclient_{self.args.instance}"
@@ -85,9 +85,16 @@ class QuicRunner:
         ServerContainer.start()
         ClientContainer.start()
 
-        self.serverIp = self.dockerClient.containers.get(self.quic_server_name).attrs[
+        network_list = self.dockerClient.containers.get(self.quic_server_name).attrs[
             "NetworkSettings"
-        ]["Networks"][self.quic_network_name]["IPAddress"]
+        ]["Networks"]
+        print(network_list)
+
+        network_matched = [val for key, val in network_list.items() if self.quic_network_name in key]
+        print(network_matched)
+
+        self.serverIp = network_matched[0]["IPAddress"]
+
         print(self.serverIp)
 
         return ServerContainer, ClientContainer
@@ -121,12 +128,17 @@ class QuicRunner:
 
         # 컨테이너 내부의 프로세스에 신호를 보냄
 
-        # kill_command = f"kill -{signal} {pid}"
-        # self.dockerClient.api.exec_create(container.id, kill_command)
+        if os.name == "nt":
+            # Windows
+            kill_command = f"kill -{signal} {pid}"
+            exec_id = self.dockerClient.api.exec_create(container.id, kill_command)["Id"]
+            self.dockerClient.api.exec_start(exec_id)
+            # os.system(f"taskkill /pid {pid} /f")
 
-        # 도커 내부에서 실행해봤자, 의미 없음
-
-        os.kill(pid, signal)
+        elif os.name == "posix":
+            # Linux
+            # 도커 내부에서 실행해봤자, 의미 없음
+            os.kill(pid, signal)
 
         print(f"Signal {signal} sent to PID {pid}")
 
