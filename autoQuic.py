@@ -20,6 +20,7 @@ import pyshark
 import statistics
 
 MSQUIC_LOG_PATH = "/msquic_logs"
+SSLKEYLOGFILE = "~/sslkey.log"
 
 class QuicRunner:
     def __init__(self, args):
@@ -180,7 +181,7 @@ class QuicRunner:
 
         # command = f"tcpdump -s 262144 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light"
         commands = [
-            f"tshark -i eth1 -w {filename_ext}.pcap --export-tls-session-keys {filename_ext}.key",
+            f"tshark -i eth1 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE} -Y quic",
             "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light",
         ]
 
