@@ -176,7 +176,7 @@ class QuicRunner:
                 f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms",
             )
 
-        self.run_command_in_container(self.server, "export SSLKEYLOGFILE=/root/sslkey.log")
+        # self.run_command_in_container(self.server, "export SSLKEYLOGFILE=/root/sslkey.log") # 해당 쉘 세션에만 적용됨
 
         # 서버 컨테이너 실행
         # self.run_command_in_container(self.server,f"tcpdump -s 0 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light")
