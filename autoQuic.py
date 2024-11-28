@@ -20,7 +20,7 @@ import pyshark
 import statistics
 
 MSQUIC_LOG_PATH = "/msquic_logs"
-SSLKEYLOGFILE = "~/sslkey.log"
+SSLKEYLOGFILE = "/root/sslkey.log"
 
 class QuicRunner:
     def __init__(self, args):
@@ -240,7 +240,7 @@ class QuicRunner:
         self.run_command_in_container(self.server, "rm -rf msquic_lttng0")
 
         self.run_command_in_container(self.server, "tc qdisc del dev eth1 root")
-        self.run_command_in_container(self.client, f"cp ~/sslkey.log {MSQUIC_LOG_PATH}/")
+        self.run_command_in_container(self.client, f"cp {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
 
 
 def main():
