@@ -28,6 +28,13 @@ class QuicRunner:
             os.kill(pid, signal)
 
         print(f"Signal {signal} sent to PID {pid}")
+    
+    def read_output(self, process):
+        for line in iter(process.stdout.readline, b""):
+            print(line, end='')
+            if "All Done" in line:
+                break
+        
 
     def run_command(
         self, command, shell=False, cwd=MSQUIC_PATH, detach=False, input=False
@@ -112,10 +119,10 @@ class QuicRunner:
         )
 
         # 서버: All Done 출력될 때까지 계속 대기
-        for line in iter(log_wrapper_process.stdout.readline, b""):
-            print(line, end='')
-            if "All Done" in line:
-                break
+        output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process,))
+        output_thread.start()
+
+        output_thread.join()
 
         self.run_command("echo ''", input=True)
         log_wrapper_process.stdin.write("\n".encode())
