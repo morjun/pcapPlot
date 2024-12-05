@@ -1,4 +1,5 @@
 import subprocess
+import shlex
 import sys
 from shutil import copy
 from shutil import rmtree
@@ -20,121 +21,21 @@ import pyshark
 import statistics
 
 MSQUIC_LOG_PATH = "/msquic_logs"
+MSQUIC_PATH = "/root/network/quic/msquic"
 SSLKEYLOGFILE = "/root/sslkey.log"
 
 class QuicRunner:
     def __init__(self, args):
         self.args = args
-        self.server, self.client = self.runContainers()
+        self.serverIp = args.target
 
-    def run_command_in_container(
-        self,
-        container,
-        command,
-        stream=True,
-        stdin=False,
-        tty=False,
-        detach=False,
-        wildcard=False,
-    ):
-        if wildcard:
-            command = f"sh -c '{command}'"
-        print(f"{container}에 명령 입력: {command}")
-        exec_id = self.dockerClient.api.exec_create(
-            container.id,
-            command,
-            stdout=True,
-            stderr=True,
-            stdin=stdin,
-            tty=tty,
-            workdir="/root/network/quic/msquic",
-        )
-        if stream:
-            logs = self.dockerClient.api.exec_start(
-                exec_id, stream=stream, detach=detach
-            )
-            # 출력을 실시간으로 받아오기
-            for line in logs:
-                print(line.decode("utf-8").strip())
-            # 실행 결과 받기
-            exit_code = self.dockerClient.api.exec_inspect(exec_id)["ExitCode"]
-            return exec_id, exit_code
-        else:
-            if detach:
-                self.dockerClient.api.exec_start(exec_id, socket=True, detach=detach)
-                return exec_id
-            else:
-                sock = self.dockerClient.api.exec_start(
-                    exec_id, socket=True, detach=detach
-                )
-                return sock, exec_id
-
-    def runContainers(self):
-        self.dockerClient = docker.from_env()
-        if self.args.instance == 1:
-            self.quic_server_name = "quicserver"
-            self.quic_client_name = "quicclient"
-            self.quic_network_name = "quicnet"
-        else:
-            self.quic_server_name = f"quicserver_{self.args.instance}"
-            self.quic_client_name = f"quicclient_{self.args.instance}"
-            self.quic_network_name = f"msquic-{self.args.instance}_quicnet{self.args.instance}"
-
-        ServerContainer = self.dockerClient.containers.get(self.quic_server_name)
-        ClientContainer = self.dockerClient.containers.get(self.quic_client_name)
-
-        ServerContainer.start()
-        ClientContainer.start()
-
-        network_list = self.dockerClient.containers.get(self.quic_server_name).attrs[
-            "NetworkSettings"
-        ]["Networks"]
-        print(network_list)
-
-        network_matched = [val for key, val in network_list.items() if self.quic_network_name in key]
-        print(network_matched)
-
-        self.serverIp = network_matched[0]["IPAddress"]
-
-        print(self.serverIp)
-
-        return ServerContainer, ClientContainer
-
-    def getSocketOutput(self, sock):
-        try:
-            while True:
-                r, w, e = select.select([sock._sock], [], [], 1)
-                if sock._sock in r:
-                    output = sock.read(1024)
-                    if output:
-                        try:
-                            print(output.decode("utf-8").strip())
-                        except UnicodeDecodeError:
-                            print("UnicodeDecodeError 발생")
-                            pass
-                    else:
-                        print("출력이 감지되지 않았습니다.")
-                        sleep(5)
-                        break
-        except Exception as e:
-            print(f"An error occurred: {e}")
-
-    def send_signal_to_exec(self, container, exec_id, signal):
-        # exec_inspect를 사용하여 exec 프로세스의 PID를 가져옴
-        exec_info = self.dockerClient.api.exec_inspect(exec_id)
-
-        # 주의!!!!!!!!!!!!! 호스트 네임스페이스의 PID임
-        pid = exec_info["Pid"]
-        print(f"pid: {pid}")
-
-        # 컨테이너 내부의 프로세스에 신호를 보냄
+    def send_signal_to_process(self, process, signal=signal.SIGINT):
+        pid = process.pid
 
         if os.name == "nt":
             # Windows
             kill_command = f"kill -{signal} {pid}"
-            exec_id = self.dockerClient.api.exec_create(container.id, kill_command)["Id"]
-            self.dockerClient.api.exec_start(exec_id)
-            # os.system(f"taskkill /pid {pid} /f")
+            os.system(f"taskkill /pid {pid} /f")
 
         elif os.name == "posix":
             # Linux
@@ -142,6 +43,18 @@ class QuicRunner:
             os.kill(pid, signal)
 
         print(f"Signal {signal} sent to PID {pid}")
+    
+    def run_command(self, command, shell=False, cwd=MSQUIC_PATH, detach=False, input=False):
+        args = shlex.split(command)
+        if detach:
+            process = None
+            if input:
+                process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell, cwd=cwd, text=True)
+            else:
+                process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell, cwd=cwd, text=True)
+            return process
+        else:
+            return subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell, cwd=cwd)
 
     def runQuic(self, lossRate, delay):
         self.lossRate = lossRate
@@ -152,96 +65,76 @@ class QuicRunner:
         if self.number > 0:
              filename_ext += f"_{self.number + 1}"
 
-        self.run_command_in_container(
-            self.server, "rm -rf msquic_lttng*", wildcard=True
-        )
-        self.run_command_in_container(self.server, "rm l*b*d*.pcap", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*.log", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*_lost.csv", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*_spin.csv", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*_cwnd.csv", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*_wMax.csv", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*.csv", wildcard=True)
-        self.run_command_in_container(self.server, "rm -rf l*b*d*/", wildcard=True)
+        self.run_command("rm -rf msquic_lttng*", shell=True)
+        self.run_command( "rm l*b*d*.pcap", shell=True)
+        self.run_command( "rm l*b*d*.log", shell=True)
+        self.run_command( "rm l*b*d*_lost.csv", shell=True)
+        self.run_command( "rm l*b*d*_spin.csv", shell=True)
+        self.run_command( "rm l*b*d*_cwnd.csv", shell=True)
+        self.run_command( "rm l*b*d*_wMax.csv", shell=True)
+        self.run_command( "rm l*b*d*.csv", shell=True)
+        self.run_command( "rm -rf l*b*d*/", shell=True)
 
-        self.run_command_in_container(self.server, "tc qdisc del dev eth1 root netem")
-        if self.args.bandwidth > 0:
-            self.run_command_in_container(
-                self.server,
-                f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
-            )
-        else:
-            self.run_command_in_container(
-                self.server,
-                f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms",
-            )
+        self.run_command( "tc qdisc del dev eth1 root netem")
 
-        # self.run_command_in_container(self.server, "export SSLKEYLOGFILE=/root/sslkey.log") # 해당 쉘 세션에만 적용됨
+        # if self.args.bandwidth > 0:
+        #     self.run_command(
+        #         f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
+        #     )
+        # else:
+        #     self.run_command(
+        #         f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms",
+        #     )
 
-        # 서버 컨테이너 실행
-        # self.run_command_in_container(self.server,f"tcpdump -s 0 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light")
-
-        # command = f"tcpdump -s 262144 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose"
         commands = [
             f"tshark -i eth1 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
-            "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
+            f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose",
         ]
 
-        exec_id = self.run_command_in_container(self.server, commands[0], detach=True)
-        print(f"exec_id: {exec_id[0]}")
-        sock, _ = self.run_command_in_container(
-            self.server, commands[1], stream=False, stdin=True, tty=True
-        )
+        tshark_process = self.run_command( commands[0], detach=True)
+        print(f"tshark_pid: {tshark_process.pid}")
 
-        outputThread = threading.Thread(target=self.getSocketOutput, args=(sock,))
-        outputThread.start()
+        while True:
+            log_wrapper_process = self.run_command(commands[1])
+            if log_wrapper_process.returncode == 0:
+                break
+            else:
+                print("The server is not open, Retrying in 5 sec...")
+                sleep(5)
 
-        sleep(5)
+        # 클라이언트: All Done 출력될 때까지 계속 대기
+        # for line in iter(log_wrapper_process.stdout.readline, b''):
+        #     # print(line.decode(), end='')
+        #     if "All Done" in line.decode():
+        #         break
 
-        self.run_command_in_container(
-            self.client,
-            f"./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp}",
-        )
+        # 클라이언트 실행 종료 시 tshark 종료
+        self.send_signal_to_process(tshark_process, signal=signal.SIGINT)
 
-        # 클라이언트 실행 종료 시 서버에서 tshark 종료 & 서버에 엔터 키 전송
-
-        self.send_signal_to_exec(self.server, exec_id[0], signal=signal.SIGINT)
-        # 여기서 실행된 tshark가 종료되지 않음 -> 메모리 누수, 추후 수정할 것
-
-        self.server.exec_run("echo ''", detach=False, tty=True)
-        sock._sock.send(b"\n")
-        print("엔터 키 전송 완료")
-
-        outputThread.join()
-        print("outputThread 종료")
-
-        self.run_command_in_container(
-            self.server, f"mv msquic_lttng0/quic.log ./{filename_ext}.log"
+        self.run_command(
+            f"mv msquic_lttng0/quic.log ./{filename_ext}.log"
         )
         # log 파일이 정상적으로 옮겨지는 것까지는 확인 완료
-        self.run_command_in_container(
-            self.server,
+
+        self.run_command(
             f"""sh -c \'tshark -r {filename_ext}.pcap -q -z io,stat,0.1 \
 | grep -P \"\\d+\\.?\\d*\\s+<>\\s+|Interval +\\|\" \
 | tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
         )
 
-        self.run_command_in_container(self.server, f"mkdir {filename}")
-        self.run_command_in_container(self.server, f"mv -f {filename_ext}.* {filename}/", wildcard=True)
+        self.run_command( f"mkdir {filename}")
+        self.run_command( f"mv -f {filename_ext}.* {filename}/", shell=True)
 
-        self.run_command_in_container(
-            self.server,
+        self.run_command(
             f"python loadSpinData.py -c ./{filename_ext}",
         )
 
-        # self.run_command_in_container(self.server, f"rm -rf {MSQUIC_LOG_PATH}/{filename}")
-        self.run_command_in_container(self.server, f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
-        self.run_command_in_container(self.server, f"rm -rf {filename}")
-        self.run_command_in_container(self.server, "rm -rf msquic_lttng0")
+        self.run_command( f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
+        self.run_command( f"rm -rf {filename}")
+        self.run_command( "rm -rf msquic_lttng0")
 
-        self.run_command_in_container(self.server, "tc qdisc del dev eth1 root")
-        self.run_command_in_container(self.client, f"cp {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
-
+        self.run_command( "tc qdisc del dev eth1 root")
+        self.run_command(f"cp {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
 
 def main():
 
@@ -278,6 +171,14 @@ def main():
         default=1,
         help="Number of times to run the test",
         required=False,
+    )
+
+    parser.add_argument(
+        "-t",
+        "--target",
+        type=str,
+        help="Target IP address",
+        required=True,
     )
 
     args = parser.parse_args()
