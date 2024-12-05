@@ -4,6 +4,7 @@ import argparse
 import subprocess
 import shlex
 import os
+import glob
 
 MSQUIC_LOG_PATH = "/msquic_logs"
 MSQUIC_PATH = "/root/network/quic/msquic"
@@ -37,6 +38,15 @@ class QuicRunner:
         self, command, shell=False, cwd=MSQUIC_PATH, detach=False, input=False
     ):
         args = shlex.split(command)
+        # 각 인자에 glob.glob 적용
+        expanded_args = []
+        for arg in args:
+            expanded = glob.glob(arg)  # glob 패턴 매칭
+            if expanded:  # 매칭된 결과가 있으면 확장
+                expanded_args.extend(expanded)
+            else:  # 매칭 결과가 없으면 원래 값을 추가
+                expanded_args.append(arg)
+        args = expanded_args
         if detach:
             process = None
             if input:
@@ -77,15 +87,15 @@ class QuicRunner:
         if self.number > 0:
             filename_ext += f"_{self.number + 1}"
 
-        self.run_command("rm -rf msquic_lttng*", shell=True)
-        self.run_command("rm l*b*d*.pcap", shell=True)
-        self.run_command("rm l*b*d*.log", shell=True)
-        self.run_command("rm l*b*d*_lost.csv", shell=True)
-        self.run_command("rm l*b*d*_spin.csv", shell=True)
-        self.run_command("rm l*b*d*_cwnd.csv", shell=True)
-        self.run_command("rm l*b*d*_wMax.csv", shell=True)
-        self.run_command("rm l*b*d*.csv", shell=True)
-        self.run_command("rm -rf l*b*d*/", shell=True)
+        self.run_command("rm -rf msquic_lttng*")
+        self.run_command("rm l*b*d*.pcap")
+        self.run_command("rm l*b*d*.log")
+        self.run_command("rm l*b*d*_lost.csv")
+        self.run_command("rm l*b*d*_spin.csv")
+        self.run_command("rm l*b*d*_cwnd.csv")
+        self.run_command("rm l*b*d*_wMax.csv")
+        self.run_command("rm l*b*d*.csv")
+        self.run_command("rm -rf l*b*d*/")
 
         self.run_command("tc qdisc del dev eth1 root netem")
 
@@ -133,7 +143,7 @@ class QuicRunner:
         )
 
         self.run_command(f"mkdir {filename}")
-        self.run_command(f"mv -f {filename_ext}.* {filename}/", shell=True)
+        self.run_command(f"mv -f {filename_ext}.* {filename}/")
 
         self.run_command(
             f"python loadSpinData.py -c ./{filename_ext}",
