@@ -44,7 +44,7 @@ class QuicRunner:
                     args,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    # stderr=subprocess.PIPE,
                     shell=shell,
                     cwd=cwd,
                     text=True,
@@ -52,8 +52,8 @@ class QuicRunner:
             else:
                 process = subprocess.Popen(
                     args,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    # stdout=subprocess.PIPE,
+                    # stderr=subprocess.PIPE,
                     shell=shell,
                     cwd=cwd,
                     text=True,
@@ -62,8 +62,8 @@ class QuicRunner:
         else:
             return subprocess.run(
                 args,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                # stdout=subprocess.PIPE,
+                # stderr=subprocess.PIPE,
                 shell=shell,
                 cwd=cwd,
             )

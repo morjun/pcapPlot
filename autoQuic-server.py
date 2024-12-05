@@ -39,7 +39,7 @@ class QuicRunner:
                     args,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    # stderr=subprocess.PIPE,
                     shell=shell,
                     cwd=cwd,
                     text=True,
@@ -47,8 +47,8 @@ class QuicRunner:
             else:
                 process = subprocess.Popen(
                     args,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    # stdout=subprocess.PIPE,
+                    # stderr=subprocess.PIPE,
                     shell=shell,
                     cwd=cwd,
                     text=True,
@@ -57,8 +57,8 @@ class QuicRunner:
         else:
             return subprocess.run(
                 args,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                # stdout=subprocess.PIPE,
+                # stderr=subprocess.PIPE,
                 shell=shell,
                 cwd=cwd,
             )
@@ -82,18 +82,18 @@ class QuicRunner:
         self.run_command("rm l*b*d*.csv", shell=True)
         self.run_command("rm -rf l*b*d*/", shell=True)
 
-        self.run_command("tc qdisc del dev eth1 root netem")
+        self.run_command("tc qdisc del dev enp0s3 root netem")
         if self.args.bandwidth > 0:
             self.run_command(
-                f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
+                f"tc qdisc add dev enp0s3 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
             )
         else:
             self.run_command(
-                f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms",
+                f"tc qdisc add dev enp0s3 root netem loss {lossRate}% delay {delay}ms",
             )
 
         commands = [
-            f"tshark -i eth1 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
+            f"tshark -i enp0s3 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
             "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
         ]
 
@@ -103,7 +103,7 @@ class QuicRunner:
 
         # 서버: All Done 출력될 때까지 계속 대기
         for line in iter(log_wrapper_process.stdout.readline, b""):
-            # print(line, end='')
+            print(line, end='')
             if "All Done" in line:
                 break
 
@@ -125,7 +125,7 @@ class QuicRunner:
         self.run_command(f"rm -rf {filename}")
         self.run_command("rm -rf msquic_lttng0")
 
-        self.run_command("tc qdisc del dev eth1 root")
+        self.run_command("tc qdisc del dev enp0s3 root")
 
 
 def main():
