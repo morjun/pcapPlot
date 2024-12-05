@@ -103,8 +103,8 @@ class QuicRunner:
 
         # 서버: All Done 출력될 때까지 계속 대기
         for line in iter(log_wrapper_process.stdout.readline, b""):
-            # print(line.decode(), end='')
-            if "All Done" in line.decode():
+            # print(line, end='')
+            if "All Done" in line:
                 break
 
         self.run_command("echo ''", input=True)
