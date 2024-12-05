@@ -1,33 +1,22 @@
-import subprocess
-import shlex
-import sys
-from shutil import copy
-from shutil import rmtree
-import numpy as np
-import pandas as pd
-import os
-import platform
-import argparse
-import configparser
-import docker
 import signal
 from time import sleep
-import select
-import multiprocessing
-import threading
-import csv
-from datetime import datetime
-import pyshark
-import statistics
+import argparse
+import subprocess
+import shlex
+import os
 
 MSQUIC_LOG_PATH = "/msquic_logs"
 MSQUIC_PATH = "/root/network/quic/msquic"
 SSLKEYLOGFILE = "/root/sslkey.log"
 
+
 class QuicRunner:
     def __init__(self, args):
         self.args = args
         self.serverIp = args.target
+        self.lossRate = 0.0
+        self.delay = 0.0
+        self.number = 0
 
     def send_signal_to_process(self, process, signal=signal.SIGINT):
         pid = process.pid
@@ -43,18 +32,41 @@ class QuicRunner:
             os.kill(pid, signal)
 
         print(f"Signal {signal} sent to PID {pid}")
-    
-    def run_command(self, command, shell=False, cwd=MSQUIC_PATH, detach=False, input=False):
+
+    def run_command(
+        self, command, shell=False, cwd=MSQUIC_PATH, detach=False, input=False
+    ):
         args = shlex.split(command)
         if detach:
             process = None
             if input:
-                process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell, cwd=cwd, text=True)
+                process = subprocess.Popen(
+                    args,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    shell=shell,
+                    cwd=cwd,
+                    text=True,
+                )
             else:
-                process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell, cwd=cwd, text=True)
+                process = subprocess.Popen(
+                    args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    shell=shell,
+                    cwd=cwd,
+                    text=True,
+                )
             return process
         else:
-            return subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell, cwd=cwd)
+            return subprocess.run(
+                args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                shell=shell,
+                cwd=cwd,
+            )
 
     def runQuic(self, lossRate, delay):
         self.lossRate = lossRate
@@ -63,19 +75,19 @@ class QuicRunner:
         filename = f"l{lossRate}b{self.args.bandwidth}d{delay}"
         filename_ext = filename
         if self.number > 0:
-             filename_ext += f"_{self.number + 1}"
+            filename_ext += f"_{self.number + 1}"
 
         self.run_command("rm -rf msquic_lttng*", shell=True)
-        self.run_command( "rm l*b*d*.pcap", shell=True)
-        self.run_command( "rm l*b*d*.log", shell=True)
-        self.run_command( "rm l*b*d*_lost.csv", shell=True)
-        self.run_command( "rm l*b*d*_spin.csv", shell=True)
-        self.run_command( "rm l*b*d*_cwnd.csv", shell=True)
-        self.run_command( "rm l*b*d*_wMax.csv", shell=True)
-        self.run_command( "rm l*b*d*.csv", shell=True)
-        self.run_command( "rm -rf l*b*d*/", shell=True)
+        self.run_command("rm l*b*d*.pcap", shell=True)
+        self.run_command("rm l*b*d*.log", shell=True)
+        self.run_command("rm l*b*d*_lost.csv", shell=True)
+        self.run_command("rm l*b*d*_spin.csv", shell=True)
+        self.run_command("rm l*b*d*_cwnd.csv", shell=True)
+        self.run_command("rm l*b*d*_wMax.csv", shell=True)
+        self.run_command("rm l*b*d*.csv", shell=True)
+        self.run_command("rm -rf l*b*d*/", shell=True)
 
-        self.run_command( "tc qdisc del dev eth1 root netem")
+        self.run_command("tc qdisc del dev eth1 root netem")
 
         # if self.args.bandwidth > 0:
         #     self.run_command(
@@ -91,7 +103,7 @@ class QuicRunner:
             f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose",
         ]
 
-        tshark_process = self.run_command( commands[0], detach=True)
+        tshark_process = self.run_command(commands[0], detach=True)
         print(f"tshark_pid: {tshark_process.pid}")
 
         while True:
@@ -111,9 +123,7 @@ class QuicRunner:
         # 클라이언트 실행 종료 시 tshark 종료
         self.send_signal_to_process(tshark_process, signal=signal.SIGINT)
 
-        self.run_command(
-            f"mv msquic_lttng0/quic.log ./{filename_ext}.log"
-        )
+        self.run_command(f"mv msquic_lttng0/quic.log ./{filename_ext}.log")
         # log 파일이 정상적으로 옮겨지는 것까지는 확인 완료
 
         self.run_command(
@@ -122,19 +132,20 @@ class QuicRunner:
 | tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
         )
 
-        self.run_command( f"mkdir {filename}")
-        self.run_command( f"mv -f {filename_ext}.* {filename}/", shell=True)
+        self.run_command(f"mkdir {filename}")
+        self.run_command(f"mv -f {filename_ext}.* {filename}/", shell=True)
 
         self.run_command(
             f"python loadSpinData.py -c ./{filename_ext}",
         )
 
-        self.run_command( f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
-        self.run_command( f"rm -rf {filename}")
-        self.run_command( "rm -rf msquic_lttng0")
+        self.run_command(f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
+        self.run_command(f"rm -rf {filename}")
+        self.run_command("rm -rf msquic_lttng0")
 
-        self.run_command( "tc qdisc del dev eth1 root")
+        self.run_command("tc qdisc del dev eth1 root")
         self.run_command(f"cp {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
+
 
 def main():
 
@@ -161,7 +172,12 @@ def main():
     )
 
     parser.add_argument(
-        "-i", "--instance", type=int, default=1, help="QUIC Server & Client pair instance number", required=False
+        "-i",
+        "--instance",
+        type=int,
+        default=1,
+        help="QUIC Server & Client pair instance number",
+        required=False,
     )
 
     parser.add_argument(
