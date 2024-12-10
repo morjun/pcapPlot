@@ -37,6 +37,7 @@ class QuicRunner:
     def run_command(
         self, command, shell=False, cwd=MSQUIC_PATH, detach=False, input=False
     ):
+        os.chdir(cwd)
         args = shlex.split(command)
         # 각 인자에 glob.glob 적용
         expanded_args = []
