@@ -132,7 +132,7 @@ class QuicRunner:
         #     if "All Done" in line.decode():
         #         break
 
-        # 클라이언트 실행 종료 시 tshark 종료
+        # 실행 종료 시 tshark 종료
         self.send_signal_to_process(tshark_process, signal=signal.SIGINT)
 
         self.run_command(f"mv msquic_lttng0/quic.log ./{filename_ext}.log")
