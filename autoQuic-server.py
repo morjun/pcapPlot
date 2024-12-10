@@ -35,7 +35,14 @@ class QuicRunner:
             print(line, end='')
             if "All Done" in line:
                 break
-        
+
+    def read_output_with_communicate(self, process, timeout=5):
+        try:
+            output, _ = process.communicate(timeout=timeout)
+            print(output.decode())
+        except subprocess.TimeoutExpired:
+            print("Timeout: Process took too long.")
+            # process.terminate()  # Optional: terminate the process
 
     def run_command(
         self, command, shell=False, cwd=MSQUIC_PATH, detach=False, input=False
@@ -122,7 +129,7 @@ class QuicRunner:
         )
 
         # 서버: All Done 출력될 때까지 계속 대기
-        output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process,))
+        output_thread = threading.Thread(target=self.read_output_with_communicate, args=(log_wrapper_process,))
         output_thread.start()
 
         output_thread.join()
