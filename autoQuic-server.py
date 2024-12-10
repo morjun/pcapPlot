@@ -37,7 +37,7 @@ class QuicRunner:
             if ready:
                 line = process.stdout.readline()
                 print(line, end='')
-                if b"All Done" in line:
+                if "All Done" in line:
                     break
             else:
                 print("Timeout: No output within the specified time.")
