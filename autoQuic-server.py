@@ -36,10 +36,10 @@ class QuicRunner:
             if "All Done" in line:
                 break
 
-    def read_output_with_communicate(self, process, timeout=5):
+    def read_output_with_communicate(self, process, timeout=30):
         try:
             output, _ = process.communicate(timeout=timeout)
-            print(output.decode())
+            print(output)
         except subprocess.TimeoutExpired:
             print("Timeout: Process took too long.")
             # process.terminate()  # Optional: terminate the process
@@ -135,7 +135,7 @@ class QuicRunner:
         output_thread.join()
 
         self.run_command("echo ''", input=True)
-        log_wrapper_process.stdin.write("\n".encode())
+        log_wrapper_process.stdin.write("\n")
         log_wrapper_process.stdin.flush()
 
         print("엔터 키 전송 완료")
