@@ -116,18 +116,18 @@ class QuicRunner:
         self.run_command("rm l*b*d*.csv")
         self.run_command("rm -rf l*b*d*/")
 
-        self.run_command("tc qdisc del dev eth1 root netem")
+        self.run_command("tc qdisc del dev eth0 root netem")
         if self.args.bandwidth > 0:
             self.run_command(
-                f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
+                f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
             )
         else:
             self.run_command(
-                f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms",
+                f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms",
             )
 
         commands = [
-            f"tshark -i eth1 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
+            f"tshark -i eth0 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
             "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
         ]
 
@@ -161,7 +161,7 @@ class QuicRunner:
         self.run_command(f"rm -rf {filename}")
         self.run_command("rm -rf msquic_lttng0")
 
-        self.run_command("tc qdisc del dev eth1 root")
+        self.run_command("tc qdisc del dev eth0 root")
 
         print("Run complete")
 
