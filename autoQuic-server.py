@@ -163,6 +163,8 @@ class QuicRunner:
 
         self.run_command("tc qdisc del dev eth0 root")
 
+        print("Run complete")
+
 
 def main():
 
