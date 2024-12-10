@@ -58,7 +58,7 @@ class QuicRunner:
             else:  # 매칭 결과가 없으면 원래 값을 추가
                 expanded_args.append(arg)
         args = expanded_args
-        print(args)
+
         if detach:
             process = None
             if input:
