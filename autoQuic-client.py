@@ -101,14 +101,14 @@ class QuicRunner:
 
         self.run_command("tc qdisc del dev eth1 root netem")
 
-        if self.args.bandwidth > 0:
-            self.run_command(
-                f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
-            )
-        else:
-            self.run_command(
-                f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms",
-            )
+        # if self.args.bandwidth > 0:
+        #     self.run_command(
+        #         f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
+        #     )
+        # else:
+        #     self.run_command(
+        #         f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms",
+        #     )
 
         commands = [
             f"tshark -i eth1 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
