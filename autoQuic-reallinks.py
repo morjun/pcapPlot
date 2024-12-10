@@ -16,11 +16,10 @@ SSLKEYLOGFILE = "/root/sslkey.log"
 class QuicRunner:
     def __init__(self, args):
         self.args = args
+        self.bandwidth = args.bandwidth
         self.isServer = args.server
         if not self.isServer:
             self.serverIp = args.target
-        self.lossRate = 0.0
-        self.delay = 0.0
         self.number = 0
 
     def send_signal_to_process(self, process, signal=signal.SIGINT):
@@ -105,11 +104,10 @@ class QuicRunner:
             )
 
     def runQuic(self, lossRate, delay):
-        self.lossRate = lossRate
-        self.delay = delay
         isServer = self.isServer
+        bandwidth = self.bandwidth
 
-        filename = f"l{lossRate}b{self.args.bandwidth}d{delay}"
+        filename = f"l{lossRate}b{bandwidth}d{delay}"
         filename_ext = filename
         if self.number > 0:
             filename_ext += f"_{self.number + 1}"
@@ -127,9 +125,9 @@ class QuicRunner:
         self.run_command("tc qdisc del dev eth0 root netem")
 
         if isServer:
-            if self.args.bandwidth > 0:
+            if bandwidth > 0:
                 self.run_command(
-                    f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
+                    f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {bandwidth}mbit",
                 )
             else:
                 self.run_command(
