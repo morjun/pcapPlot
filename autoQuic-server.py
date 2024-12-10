@@ -1,10 +1,11 @@
 import signal
-from time import sleep
-import argparse
 import subprocess
+import threading
 import shlex
 import os
+import argparse
 import glob
+import select
 
 MSQUIC_LOG_PATH = "/msquic_logs"
 MSQUIC_PATH = "/root/network/quic/msquic"
@@ -14,10 +15,6 @@ SSLKEYLOGFILE = "/root/sslkey.log"
 class QuicRunner:
     def __init__(self, args):
         self.args = args
-        self.serverIp = args.target
-        self.lossRate = 0.0
-        self.delay = 0.0
-        self.number = 0
 
     def send_signal_to_process(self, process, signal=signal.SIGINT):
         pid = process.pid
@@ -33,6 +30,26 @@ class QuicRunner:
             os.kill(pid, signal)
 
         print(f"Signal {signal} sent to PID {pid}")
+    
+    def read_output(self, process, timeout = 30):
+        while True:
+            ready, _, _ = select.select([process.stdout], [], [], timeout)
+            if ready:
+                line = process.stdout.readline()
+                print(line, end='')
+                if "All Done" in line:
+                    break
+            else:
+                print("Timeout: No output within the specified time.")
+                break
+
+    def read_output_with_communicate(self, process, timeout=30):
+        try:
+            output, _ = process.communicate(timeout=timeout)
+            print(output)
+        except subprocess.TimeoutExpired:
+            print("Timeout: Process took too long.")
+            # process.terminate()  # Optional: terminate the process
 
     def run_command(
         self, command, shell=False, cwd=MSQUIC_PATH, detach=False, input=False
@@ -48,7 +65,7 @@ class QuicRunner:
             else:  # 매칭 결과가 없으면 원래 값을 추가
                 expanded_args.append(arg)
         args = expanded_args
-        print(args)
+
         if detach:
             process = None
             if input:
@@ -100,63 +117,53 @@ class QuicRunner:
         self.run_command("rm -rf l*b*d*/")
 
         self.run_command("tc qdisc del dev eth0 root netem")
-
-        # if self.args.bandwidth > 0:
-        #     self.run_command(
-        #         f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
-        #     )
-        # else:
-        #     self.run_command(
-        #         f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms",
-        #     )
+        if self.args.bandwidth > 0:
+            self.run_command(
+                f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
+            )
+        else:
+            self.run_command(
+                f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms",
+            )
 
         commands = [
             f"tshark -i eth0 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
-            f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose",
+            "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
         ]
 
-        tshark_process = self.run_command(commands[0], detach=True)
-        print(f"tshark_pid: {tshark_process.pid}")
+        log_wrapper_process = self.run_command(
+            commands[1], detach=True, input=True
+        )
 
-        while True:
-            log_wrapper_process = self.run_command(commands[1])
-            if log_wrapper_process.returncode == 0:
-                break
-            else:
-                print("The server is not open, Retrying in 5 sec...")
-                sleep(5)
+        # 서버: All Done 출력될 때까지 계속 대기
+        output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process,))
+        output_thread.start()
+        print("Output rhead thread started")
 
-        # 클라이언트: All Done 출력될 때까지 계속 대기
-        # for line in iter(log_wrapper_process.stdout.readline, b''):
-        #     # print(line.decode(), end='')
-        #     if "All Done" in line.decode():
-        #         break
+        output_thread.join()
+        print("Output thread joined")
 
-        # 클라이언트 실행 종료 시 tshark 종료
-        self.send_signal_to_process(tshark_process, signal=signal.SIGINT)
+        self.run_command("echo ''", input=True)
+        log_wrapper_process.stdin.write("\n")
+        log_wrapper_process.stdin.flush()
+
+        print("엔터 키 전송 완료")
+
+        log_wrapper_process.wait()
 
         self.run_command(f"mv msquic_lttng0/quic.log ./{filename_ext}.log")
         # log 파일이 정상적으로 옮겨지는 것까지는 확인 완료
 
-        self.run_command(
-            f"""sh -c \'tshark -r {filename_ext}.pcap -q -z io,stat,0.1 \
-| grep -P \"\\d+\\.?\\d*\\s+<>\\s+|Interval +\\|\" \
-| tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
-        )
-
         self.run_command(f"mkdir {filename}")
         self.run_command(f"mv -f {filename_ext}.* {filename}/")
-
-        self.run_command(
-            f"python loadSpinData.py -c ./{filename_ext}",
-        )
 
         self.run_command(f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
         self.run_command(f"rm -rf {filename}")
         self.run_command("rm -rf msquic_lttng0")
 
         self.run_command("tc qdisc del dev eth0 root")
-        self.run_command(f"cp {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
+
+        print("Run complete")
 
 
 def main():
@@ -199,14 +206,6 @@ def main():
         default=1,
         help="Number of times to run the test",
         required=False,
-    )
-
-    parser.add_argument(
-        "-t",
-        "--target",
-        type=str,
-        help="Target IP address",
-        required=True,
     )
 
     args = parser.parse_args()
