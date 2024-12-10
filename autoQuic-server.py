@@ -131,8 +131,10 @@ class QuicRunner:
         # 서버: All Done 출력될 때까지 계속 대기
         output_thread = threading.Thread(target=self.read_output_with_communicate, args=(log_wrapper_process,))
         output_thread.start()
+        print("Output rhead thread started")
 
         output_thread.join()
+        print("Output thread joined")
 
         self.run_command("echo ''", input=True)
         log_wrapper_process.stdin.write("\n")
