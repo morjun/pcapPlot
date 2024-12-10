@@ -5,6 +5,7 @@ import shlex
 import os
 import argparse
 import glob
+import select
 
 MSQUIC_LOG_PATH = "/msquic_logs"
 MSQUIC_PATH = "/root/network/quic/msquic"
@@ -30,10 +31,16 @@ class QuicRunner:
 
         print(f"Signal {signal} sent to PID {pid}")
     
-    def read_output(self, process):
-        for line in iter(process.stdout.readline, b""):
-            print(line, end='')
-            if "All Done" in line:
+    def read_output(self, process, timeout = 30):
+        while True:
+            ready, _, _ = select.select([process.stdout], [], [], timeout)
+            if ready:
+                line = process.stdout.readline()
+                print(line, end='')
+                if b"All Done" in line:
+                    break
+            else:
+                print("Timeout: No output within the specified time.")
                 break
 
     def read_output_with_communicate(self, process, timeout=30):
@@ -129,7 +136,7 @@ class QuicRunner:
         )
 
         # 서버: All Done 출력될 때까지 계속 대기
-        output_thread = threading.Thread(target=self.read_output_with_communicate, args=(log_wrapper_process,))
+        output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process,))
         output_thread.start()
         print("Output rhead thread started")
 
