@@ -1,5 +1,6 @@
 import signal
 import subprocess
+from time import sleep
 import threading
 import shlex
 import os
@@ -15,6 +16,12 @@ SSLKEYLOGFILE = "/root/sslkey.log"
 class QuicRunner:
     def __init__(self, args):
         self.args = args
+        self.isServer = args.server
+        if not self.isServer:
+            self.serverIp = args.target
+        self.lossRate = 0.0
+        self.delay = 0.0
+        self.number = 0
 
     def send_signal_to_process(self, process, signal=signal.SIGINT):
         pid = process.pid
@@ -100,6 +107,7 @@ class QuicRunner:
     def runQuic(self, lossRate, delay):
         self.lossRate = lossRate
         self.delay = delay
+        isServer = self.isServer
 
         filename = f"l{lossRate}b{self.args.bandwidth}d{delay}"
         filename_ext = filename
@@ -117,39 +125,62 @@ class QuicRunner:
         self.run_command("rm -rf l*b*d*/")
 
         self.run_command("tc qdisc del dev eth0 root netem")
-        if self.args.bandwidth > 0:
-            self.run_command(
-                f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
-            )
+
+        if isServer:
+            if self.args.bandwidth > 0:
+                self.run_command(
+                    f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {self.args.bandwidth}mbit",
+                )
+            else:
+                self.run_command(
+                    f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms",
+                )
+
+        commands = []
+        if isServer:
+            commands = [
+                f"tshark -i eth0 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
+                "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
+            ]
         else:
-            self.run_command(
-                f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms",
+            commands = [
+                f"tshark -i eth0 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
+                f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose",
+            ]
+
+
+        tshark_process = self.run_command(commands[0], detach=True)
+        print(f"tshark_pid: {tshark_process.pid}")
+
+        if isServer:
+            log_wrapper_process = self.run_command(
+                commands[1], detach=True, input=True
             )
 
-        commands = [
-            f"tshark -i eth0 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
-            "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
-        ]
+            # 서버: All Done 출력될 때까지 계속 대기
+            output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process,))
+            output_thread.start()
+            print("Output rhead thread started")
 
-        log_wrapper_process = self.run_command(
-            commands[1], detach=True, input=True
-        )
+            output_thread.join()
+            print("Output thread joined")
 
-        # 서버: All Done 출력될 때까지 계속 대기
-        output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process,))
-        output_thread.start()
-        print("Output rhead thread started")
+            self.run_command("echo ''", input=True)
+            log_wrapper_process.stdin.write("\n")
+            log_wrapper_process.stdin.flush()
 
-        output_thread.join()
-        print("Output thread joined")
+            print("엔터 키 전송 완료")
 
-        self.run_command("echo ''", input=True)
-        log_wrapper_process.stdin.write("\n")
-        log_wrapper_process.stdin.flush()
+            log_wrapper_process.wait()
 
-        print("엔터 키 전송 완료")
-
-        log_wrapper_process.wait()
+        else:
+            while True:
+                log_wrapper_process = self.run_command(commands[1])
+                if log_wrapper_process.returncode == 0:
+                    break
+                else:
+                    print("The server is not open, Retrying in 5 sec...")
+                    sleep(5)
 
         self.run_command(f"mv msquic_lttng0/quic.log ./{filename_ext}.log")
         # log 파일이 정상적으로 옮겨지는 것까지는 확인 완료
@@ -157,11 +188,18 @@ class QuicRunner:
         self.run_command(f"mkdir {filename}")
         self.run_command(f"mv -f {filename_ext}.* {filename}/")
 
+        self.run_command(
+            f"python loadSpinData.py -c ./{filename_ext}",
+        )
+
         self.run_command(f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
         self.run_command(f"rm -rf {filename}")
         self.run_command("rm -rf msquic_lttng0")
 
         self.run_command("tc qdisc del dev eth0 root")
+
+        if not isServer:
+            self.run_command(f"cp {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
 
         print("Run complete")
 
@@ -208,7 +246,21 @@ def main():
         required=False,
     )
 
+    # Mutually exclusive group for --server and --client
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--server', action='store_true', help="Run as server")
+    group.add_argument('--client', action='store_true', help="Run as client")
+
+    parser.add_argument(
+        "-t",
+        "--target",
+        type=str,
+        help="Target IP address (required in --client mode)",
+    )
+
     args = parser.parse_args()
+    if args.client and not args.target:
+        parser.error("--target is required in --client mode")
 
     lastValues = []
     lossRates = []
