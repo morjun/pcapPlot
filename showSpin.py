@@ -160,16 +160,34 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             self.spinFrame["spin"].values.flatten(),
             pen="b",
         )
+        spinItem_dot = pg.ScatterPlotItem(
+            self.spinFrame["time"].values.flatten(),
+            self.spinFrame["spin"].values.flatten(),
+            pen="b",
+            symbol="o",
+            symbolPen="b",
+            symbolBrush="b",
+            symbolSize=10,
+        )
         throughputItem = pg.PlotCurveItem(
             self.throughputFrame["Interval start"].values.flatten(),
             self.throughputFrame["All Packets"].values.flatten(),
             pen="g",
         )
+        throughputItem_dot = pg.ScatterPlotItem(
+            self.throughputFrame["Interval start"].values.flatten(),
+            self.throughputFrame["All Packets"].values.flatten(),
+            pen="g",
+            symbol="o",
+            symbolPen="g",
+            symbolBrush="g",
+            symbolSize=10,
+        )
         lossItem0 = pg.ScatterPlotItem(
             rackFrame["time"].values.flatten(),
             rackFrame.mask(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_RACK, 1)["loss"].values.flatten(),
             pen="r",
-            symbol="o",
+            symbol="star",
             symbolPen="r",
             symbolBrush="r",
             symbolSize=10,
@@ -178,7 +196,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             fackFrame["time"].values.flatten(),
             fackFrame.mask(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK, 1)["loss"].values.flatten(),
             pen="c",
-            symbol="o",
+            symbol="star",
             symbolPen="c",
             symbolBrush="c",
             symbolSize=10,
@@ -187,7 +205,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             probeFrame["time"].values.flatten(),
             probeFrame.mask(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE, 1)["loss"].values.flatten(),
             pen="y",
-            symbol="o",
+            symbol="star",
             symbolPen="y",
             symbolBrush="y",
             symbolSize=10,
@@ -197,6 +215,15 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             self.cwndFrame["cwnd"].values.flatten(),
             pen="m",
         )
+        cwndItem_dot = pg.ScatterPlotItem(
+            self.cwndFrame["time"].values.flatten(),
+            self.cwndFrame["cwnd"].values.flatten(),
+            pen="m",
+            symbol="o",
+            symbolPen="m",
+            symbolBrush="m",
+            symbolSize=10,
+        )
         wMaxItem = pg.PlotCurveItem(
             self.wMaxFrame["time"].values.flatten(),
             self.wMaxFrame["wMax"].values.flatten(),
@@ -204,11 +231,18 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
         )
 
         view1.addItem(spinItem)
+        view1.addItem(spinItem_dot)
+
         view2.addItem(throughputItem)
+        view2.addItem(throughputItem_dot)
+
         view3.addItem(lossItem0)
         view3.addItem(lossItem1)
         view3.addItem(lossItem2)
+
         view4.addItem(cwndItem)
+        view4.addItem(cwndItem_dot)
+
         view6.addItem(wMaxItem)
 
         legend.addItem(spinItem, "Spin bit")
