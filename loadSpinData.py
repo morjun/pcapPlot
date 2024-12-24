@@ -85,6 +85,18 @@ def loadData(args):
                     initialTime = (
                         packet.sniff_time.timestamp()
                     )  # Initial 패킷의 전송을 기준 시각으로
+
+                    initialTime_datetime = datetime.fromtimestamp(initialTime)
+
+                    # if initialTime_datetime.hour > 12:
+                    #     initialTime_datetime = initialTime_datetime.replace(
+                    #         hour=initialTime_datetime.hour - 12,
+                    #     )
+
+                    # initialTime = initialTime_datetime.timestamp()
+
+                    print(f"Initial time: {initialTime}")
+                    print(f"as datetime: {initialTime_datetime}")
                 if hasattr(packet.quic, "spin_bit"):
                     if packet.udp.srcport == str(port):  # 서버가 전송한 패킷만
                         time = packet.sniff_time.timestamp() - initialTime
@@ -103,7 +115,13 @@ def loadData(args):
                                 initialSpinTime = time
                             prevTime = time
                         times = np.append(times, float(time))
-                        spins = np.append(spins, int(spin))
+                        try:
+                            spins = np.append(spins, int(spin))
+                        except ValueError:
+                            if spin == "True":
+                                spins = np.append(spins, 1)
+                            else:
+                                spins = np.append(spins, 0)
                         prevSpin = spin
                         if (int(packet.number) % 1000) == 0:
                             print(f"{packet.number} packets processed")
@@ -122,6 +140,16 @@ def loadData(args):
                 initialLogTime = datetime.strptime(
                     timeString, "%H:%M:%S.%f"
                 )  # Initial 패킷의 전송을 기준 시각으로
+
+                print(f"Initial Log time: {initialLogTime}")
+                initialTime_datetime = datetime.fromtimestamp(initialTime)
+                initialTime_datetime = initialTime_datetime.replace(
+                    year=initialLogTime.year,
+                    month=initialLogTime.month,
+                    day=initialLogTime.day,
+                )
+                timeDelta = initialTime_datetime - initialLogTime
+                print(f"Time delta: {timeDelta}")
             else:
                 if initialLogTime == 0:
                     continue
