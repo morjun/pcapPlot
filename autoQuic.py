@@ -20,11 +20,12 @@ import pyshark
 import statistics
 
 MSQUIC_LOG_PATH = "/msquic_logs"
+SSLKEYLOGFILE = "/root/sslkey.log"
 
 class QuicRunner:
     def __init__(self, args):
-        self.server, self.client = self.runContainers()
         self.args = args
+        self.server, self.client = self.runContainers()
 
     def run_command_in_container(
         self,
@@ -70,16 +71,31 @@ class QuicRunner:
 
     def runContainers(self):
         self.dockerClient = docker.from_env()
+        if self.args.instance == 1:
+            self.quic_server_name = "quicserver"
+            self.quic_client_name = "quicclient"
+            self.quic_network_name = "quicnet"
+        else:
+            self.quic_server_name = f"quicserver_{self.args.instance}"
+            self.quic_client_name = f"quicclient_{self.args.instance}"
+            self.quic_network_name = f"msquic-{self.args.instance}_quicnet{self.args.instance}"
 
-        ServerContainer = self.dockerClient.containers.get("quicserver")
-        ClientContainer = self.dockerClient.containers.get("quicclient")
+        ServerContainer = self.dockerClient.containers.get(self.quic_server_name)
+        ClientContainer = self.dockerClient.containers.get(self.quic_client_name)
 
         ServerContainer.start()
         ClientContainer.start()
 
-        self.serverIp = self.dockerClient.containers.get("quicserver").attrs[
+        network_list = self.dockerClient.containers.get(self.quic_server_name).attrs[
             "NetworkSettings"
-        ]["Networks"]["msquic_quicnet"]["IPAddress"]
+        ]["Networks"]
+        print(network_list)
+
+        network_matched = [val for key, val in network_list.items() if self.quic_network_name in key]
+        print(network_matched)
+
+        self.serverIp = network_matched[0]["IPAddress"]
+
         print(self.serverIp)
 
         return ServerContainer, ClientContainer
@@ -113,12 +129,17 @@ class QuicRunner:
 
         # 컨테이너 내부의 프로세스에 신호를 보냄
 
-        # kill_command = f"kill -{signal} {pid}"
-        # self.dockerClient.api.exec_create(container.id, kill_command)
+        if os.name == "nt":
+            # Windows
+            kill_command = f"kill -{signal} {pid}"
+            exec_id = self.dockerClient.api.exec_create(container.id, kill_command)["Id"]
+            self.dockerClient.api.exec_start(exec_id)
+            # os.system(f"taskkill /pid {pid} /f")
 
-        # 도커 내부에서 실행해봤자, 의미 없음
-
-        os.kill(pid, signal)
+        elif os.name == "posix":
+            # Linux
+            # 도커 내부에서 실행해봤자, 의미 없음
+            os.kill(pid, signal)
 
         print(f"Signal {signal} sent to PID {pid}")
 
@@ -155,13 +176,15 @@ class QuicRunner:
                 f"tc qdisc add dev eth1 root netem loss {lossRate}% delay {delay}ms",
             )
 
+        # self.run_command_in_container(self.server, "export SSLKEYLOGFILE=/root/sslkey.log") # 해당 쉘 세션에만 적용됨
+
         # 서버 컨테이너 실행
         # self.run_command_in_container(self.server,f"tcpdump -s 0 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light")
 
-        # command = f"tcpdump -s 262144 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light"
+        # command = f"tcpdump -s 262144 -i eth1 -w {filename}.pcap & ./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose"
         commands = [
-            f"tshark -i eth1 -w {filename_ext}.pcap",
-            "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light",
+            f"tshark -i eth1 -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
+            "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
         ]
 
         exec_id = self.run_command_in_container(self.server, commands[0], detach=True)
@@ -220,6 +243,7 @@ class QuicRunner:
         self.run_command_in_container(self.server, "rm -rf msquic_lttng0")
 
         self.run_command_in_container(self.server, "tc qdisc del dev eth1 root")
+        self.run_command_in_container(self.client, f"cp {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
 
 
 def main():
@@ -244,6 +268,10 @@ def main():
     )
     parser.add_argument(
         "-d", "--delay", type=int, default=-1, help="Delay in ms", required=False
+    )
+
+    parser.add_argument(
+        "-i", "--instance", type=int, default=1, help="QUIC Server & Client pair instance number", required=False
     )
 
     parser.add_argument(
