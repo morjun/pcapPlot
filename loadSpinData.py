@@ -33,12 +33,16 @@ def loadData(args):
 
     stats_file = open("stats.csv", "a", encoding="utf8")
 
-    full_path = args.file[0]
+    full_path = args.file[0] # 입력: .../l0b0d0_t0_n
     full_path = os.path.relpath(full_path)
 
-    splitted_path = os.path.split(full_path)
+    splitted_path = os.path.split(full_path) # ('...', 'l0b0d0_t0_n')
 
-    filename_prefix = splitted_path[-1]
+    arg_path = splitted_path[-1] # l0b0d0_t0_n
+    parametric_path = arg_path.split("_t")[0] # l0b0d0
+    index = arg_path.split("_")[-1] # n
+
+    filename_prefix = f"{parametric_path}_{index}" # l0b0d0_n
     print(f"filename prefix: {filename_prefix}")
 
     filename_reg = r"l(\d+(.\d+)?)b(\d+)d(\d+)"
@@ -51,7 +55,8 @@ def loadData(args):
 
     print(f"loss: {loss}, bandwidth: {bandwidth}, delay: {delay}")
 
-    full_path = os.path.join(splitted_path[0], filename_prefix.split("_")[0])
+    # full_path = os.path.join(splitted_path[0], filename_prefix.split("_")[0])
+
     os.chdir(full_path)
     print(f"full path: {full_path}")
 

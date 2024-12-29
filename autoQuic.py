@@ -136,10 +136,10 @@ class QuicRunner:
         )
         self.run_command_in_container(self.server, "rm l*b*d*.pcap", wildcard=True)
         self.run_command_in_container(self.server, "rm l*b*d*.log", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*_lost.csv", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*_spin.csv", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*_cwnd.csv", wildcard=True)
-        self.run_command_in_container(self.server, "rm l*b*d*_wMax.csv", wildcard=True)
+        self.run_command_in_container(self.server, "rm l*b*d*_lost*.csv", wildcard=True)
+        self.run_command_in_container(self.server, "rm l*b*d*_spin*.csv", wildcard=True)
+        self.run_command_in_container(self.server, "rm l*b*d*_cwnd*.csv", wildcard=True)
+        self.run_command_in_container(self.server, "rm l*b*d*_wMax*.csv", wildcard=True)
         self.run_command_in_container(self.server, "rm l*b*d*.csv", wildcard=True)
         self.run_command_in_container(self.server, "rm -rf l*b*d*/", wildcard=True)
 
@@ -203,8 +203,11 @@ class QuicRunner:
 | tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
         )
 
-        self.run_command_in_container(self.server, f"mkdir {filename}")
-        self.run_command_in_container(self.server, f"mv -f {filename_ext}.* {filename}/", wildcard=True)
+        current_time_unix = int(datetime.now().timestamp())
+        foldername = f"{filename}_t{current_time_unix}"
+
+        self.run_command_in_container(self.server, f"mkdir {foldername}")
+        self.run_command_in_container(self.server, f"mv -f {filename_ext}.* {foldername}/", wildcard=True)
 
         self.run_command_in_container(
             self.server,
