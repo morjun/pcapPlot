@@ -40,9 +40,11 @@ def loadData(args):
 
     arg_path = splitted_path[-1] # l0b0d0_t0_n
     parametric_path = arg_path.split("_t")[0] # l0b0d0
-    index = arg_path.split("_")[-1] # n
-
-    filename_prefix = f"{parametric_path}_{index}" # l0b0d0_n
+    arg_path_parts = arg_path.split("_")
+    filename_prefix = parametric_path
+    if len(arg_path_parts) > 2:
+        index = arg_path.split("_")[-1] # n
+        filename_prefix = f"{parametric_path}_{index}" # l0b0d0_n
     print(f"filename prefix: {filename_prefix}")
 
     filename_reg = r"l(\d+(.\d+)?)b(\d+)d(\d+)"
@@ -57,8 +59,8 @@ def loadData(args):
 
     # full_path = os.path.join(splitted_path[0], filename_prefix.split("_")[0])
 
-    os.chdir(full_path)
     print(f"full path: {full_path}")
+    os.chdir(full_path)
 
     if args.csv:
         tempFrame = pd.read_csv(f"{filename_prefix}.csv")
