@@ -148,9 +148,12 @@ class QuicRunner:
         self.delay = delay
 
         filename = f"l{lossRate}b{self.args.bandwidth}d{delay}"
-        filename_ext = filename
+        current_time_unix = int(datetime.now().timestamp())
+        foldername = f"{filename}_t{current_time_unix}"
+
+        filename_ext = foldername
         if self.number > 0:
-             filename_ext += f"_{self.number + 1}"
+            filename_ext += f"_{self.number + 1}"
 
         self.run_command_in_container(
             self.server, "rm -rf msquic_lttng*", wildcard=True
@@ -226,9 +229,6 @@ class QuicRunner:
 | tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
         )
 
-        current_time_unix = int(datetime.now().timestamp())
-        foldername = f"{filename}_t{current_time_unix}"
-
         self.run_command_in_container(self.server, f"mkdir {foldername}")
         self.run_command_in_container(self.server, f"mv -f {filename_ext}.* {foldername}/", wildcard=True)
 
@@ -238,8 +238,8 @@ class QuicRunner:
         )
 
         # self.run_command_in_container(self.server, f"rm -rf {MSQUIC_LOG_PATH}/{filename}")
-        self.run_command_in_container(self.server, f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
-        self.run_command_in_container(self.server, f"rm -rf {filename}")
+        self.run_command_in_container(self.server, f"cp -rf {foldername}/ {MSQUIC_LOG_PATH}/")
+        self.run_command_in_container(self.server, f"rm -rf {foldername}/")
         self.run_command_in_container(self.server, "rm -rf msquic_lttng0")
 
         self.run_command_in_container(self.server, "tc qdisc del dev eth1 root")
