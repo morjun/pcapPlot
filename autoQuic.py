@@ -151,9 +151,11 @@ class QuicRunner:
         current_time_unix = int(datetime.now().timestamp())
         foldername = f"{filename}_t{current_time_unix}"
 
-        filename_ext = foldername
+        filename_ext = filename 
+        foldername_ext = foldername
         if self.number > 0:
             filename_ext += f"_{self.number + 1}"
+            foldername_ext += f"_{self.number + 1}"
 
         self.run_command_in_container(
             self.server, "rm -rf msquic_lttng*", wildcard=True
@@ -234,7 +236,7 @@ class QuicRunner:
 
         self.run_command_in_container(
             self.server,
-            f"python loadSpinData.py -c ./{filename_ext}",
+            f"python loadSpinData.py -c ./{foldername_ext}",
         )
 
         # self.run_command_in_container(self.server, f"rm -rf {MSQUIC_LOG_PATH}/{filename}")
