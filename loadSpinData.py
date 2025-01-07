@@ -33,18 +33,21 @@ def loadData(args):
 
     stats_file = open("stats.csv", "a", encoding="utf8")
 
-    full_path = args.file[0] # 입력: .../l0b0d0_t0_n
+    full_path = args.file[0] # 입력: .../l0b0d0_t0
+    index = args.number # 입력: n
+
     full_path = os.path.relpath(full_path)
 
-    splitted_path = os.path.split(full_path) # ('...', 'l0b0d0_t0_n')
+    splitted_path = os.path.split(full_path) # ('...', 'l0b0d0_t0')
 
-    arg_path = splitted_path[-1] # l0b0d0_t0_n
-    parametric_path = arg_path.split("_t")[0] # l0b0d0
-    arg_path_parts = arg_path.split("_")
-    filename_prefix = parametric_path
-    if len(arg_path_parts) > 2:
-        index = arg_path.split("_")[-1] # n
+    arg_path_parts = splitted_path[1].split("_") # ['l0b0d0', 't0']
+    parametric_path = arg_path_parts[0] # l0b0d0
+
+    filename_prefix = parametric_path # 초기화
+
+    if index > 1:
         filename_prefix = f"{parametric_path}_{index}" # l0b0d0_n
+
     print(f"filename prefix: {filename_prefix}")
 
     filename_reg = r"l(\d+(.\d+)?)b(\d+)d(\d+)"
@@ -243,6 +246,15 @@ def main():
         action="store_true",
         help="Additional csv handling for tshark captured files",
         default=False,
+        required=False,
+    )
+
+    parser.add_argument(
+        "-n",
+        "--number",
+        type=int,
+        default=1,
+        help="n-th test in a single epoch",
         required=False,
     )
 

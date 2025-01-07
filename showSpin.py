@@ -167,7 +167,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             symbol="o",
             symbolPen="b",
             symbolBrush="b",
-            symbolSize=10,
+            symbolSize=5,
         )
         throughputItem = pg.PlotCurveItem(
             self.throughputFrame["Interval start"].values.flatten(),
@@ -181,7 +181,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             symbol="o",
             symbolPen="g",
             symbolBrush="g",
-            symbolSize=10,
+            symbolSize=5,
         )
         lossItem0 = pg.ScatterPlotItem(
             rackFrame["time"].values.flatten(),
@@ -190,7 +190,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             symbol="star",
             symbolPen="r",
             symbolBrush="r",
-            symbolSize=10,
+            symbolSize=20,
         )
         lossItem1 = pg.ScatterPlotItem(
             fackFrame["time"].values.flatten(),
@@ -199,7 +199,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             symbol="star",
             symbolPen="c",
             symbolBrush="c",
-            symbolSize=10,
+            symbolSize=5,
         )
         lossItem2 = pg.ScatterPlotItem(
             probeFrame["time"].values.flatten(),
@@ -208,7 +208,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             symbol="star",
             symbolPen="y",
             symbolBrush="y",
-            symbolSize=10,
+            symbolSize=5,
         )
         cwndItem = pg.PlotCurveItem(
             self.cwndFrame["time"].values.flatten(),
@@ -222,7 +222,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             symbol="o",
             symbolPen="m",
             symbolBrush="m",
-            symbolSize=10,
+            symbolSize=5,
         )
         wMaxItem = pg.PlotCurveItem(
             self.wMaxFrame["time"].values.flatten(),
