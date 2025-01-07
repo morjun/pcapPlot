@@ -234,7 +234,7 @@ class QuicRunner:
 
         self.run_command_in_container(
             self.server,
-            f"python loadSpinData.py -c -n {self.number} ./{foldername}",
+            f"python loadSpinData.py -c -n {self.number + 1} ./{foldername}",
         )
 
         # self.run_command_in_container(self.server, f"rm -rf {MSQUIC_LOG_PATH}/{filename}")
