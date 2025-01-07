@@ -19,6 +19,8 @@ class QuicRunner:
         self.args = args
         self.bandwidth = args.bandwidth
         self.isServer = args.server
+        self.clientInitiated = False
+        self.current_time_unix = int(datetime.now().timestamp())
         if not self.isServer:
             self.serverIp = args.target
         self.number = 0
@@ -38,17 +40,39 @@ class QuicRunner:
 
         print(f"Signal {signal} sent to PID {pid}")
     
-    def read_output(self, process, timeout = 30):
-        while True:
-            ready, _, _ = select.select([process.stdout], [], [], timeout)
-            if ready:
-                line = process.stdout.readline()
-                print(line, end='')
-                if "All Done" in line:
+    def read_output(self, process, timeout = 30, isServer = True):
+        connectionEstablished = False
+        ready = None
+
+        if isServer:
+            while True:
+                if connectionEstablished:
+                    ready, _, _ = select.select([process.stdout], [], [], timeout)
+                else:
+                    ready, _, _ = select.select([process.stdout], [], [],) # Infinitely wait until the client initiates
+                if ready:
+                    line = process.stdout.readline()
+                    print(line, end='')
+                    if "All Done" in line:
+                        break
+                    elif "Sent" in line or "sent" in line:
+                        connectionEstablished = True
+                else:
+                    print("Timeout: No output within the specified time.")
                     break
-            else:
-                print("Timeout: No output within the specified time.")
-                break
+        else:
+            while True:
+                ready, _, _ = select.select([process.stdout], [], [], timeout)
+                if ready:
+                    line = process.stdout.readline()
+                    print(line, end='')
+                    if "All Done" in line:
+                        break
+                    elif "Data received" in line:
+                        self.clientInitiated = True
+                else:
+                    print("Timeout: No output within the specified time.")
+                    break
 
     def read_output_with_communicate(self, process, timeout=30):
         try:
@@ -110,8 +134,7 @@ class QuicRunner:
         bandwidth = self.bandwidth
 
         filename = f"l{lossRate}b{bandwidth}d{delay}"
-        current_time_unix = int(datetime.now().timestamp())
-        foldername = f"{filename}_t{current_time_unix}"
+        foldername = f"{filename}_t{self.current_time_unix}"
 
         filename_ext = filename
         if self.number > 0:
@@ -178,10 +201,18 @@ class QuicRunner:
 
         else:
             while True:
-                log_wrapper_process = self.run_command(commands[1])
-                if log_wrapper_process.returncode == 0:
+                log_wrapper_process = self.run_command(commands[1], detach=True, input=True)
+                output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process, 30, False))
+                output_thread.start()
+                print("Output rhead thread started")
+
+                output_thread.join()
+                print("Output thread joined")
+
+                if self.clientInitiated:
+                    self.clientInitiated = False
                     break
-                else:
+                else: # 서버 안 열려도 리턴코드 0임 initial 몇번 보내고 포기 -> 리턴코드 0
                     print("The server is not open, Retrying in 5 sec...")
                     sleep(5)
 

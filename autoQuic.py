@@ -25,6 +25,7 @@ SSLKEYLOGFILE = "/root/sslkey.log"
 class QuicRunner:
     def __init__(self, args):
         self.args = args
+        self.current_time_unix = int(datetime.now().timestamp())
         self.server, self.client = self.runContainers()
 
     def run_command_in_container(
@@ -148,8 +149,7 @@ class QuicRunner:
         self.delay = delay
 
         filename = f"l{lossRate}b{self.args.bandwidth}d{delay}"
-        current_time_unix = int(datetime.now().timestamp())
-        foldername = f"{filename}_t{current_time_unix}"
+        foldername = f"{filename}_t{self.current_time_unix}"
 
         filename_ext = filename 
         if self.number > 0:

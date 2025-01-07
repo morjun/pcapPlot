@@ -329,6 +329,15 @@ def main():
         required=False,
     )
 
+    parser.add_argument(
+        "-n",
+        "--number",
+        type=int,
+        default=1,
+        help="n-th test in a single epoch",
+        required=False,
+    )
+
     args = parser.parse_args()
 
     app = QtWidgets.QApplication([])
