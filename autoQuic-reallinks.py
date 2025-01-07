@@ -198,7 +198,7 @@ class QuicRunner:
         self.run_command(f"mv -f {filename_ext}.* {filename}/")
 
         self.run_command(
-            f"python loadSpinData.py -c ./{filename_ext}",
+            f"python loadSpinData.py -c -n {self.number + 1} ./{filename}",
         )
 
         self.run_command(f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
