@@ -7,6 +7,7 @@ import os
 import argparse
 import glob
 import select
+from datetime import datetime
 
 MSQUIC_LOG_PATH = "/msquic_logs"
 MSQUIC_PATH = "/root/network/quic/msquic"
@@ -109,6 +110,9 @@ class QuicRunner:
         bandwidth = self.bandwidth
 
         filename = f"l{lossRate}b{bandwidth}d{delay}"
+        current_time_unix = int(datetime.now().timestamp())
+        foldername = f"{filename}_t{current_time_unix}"
+
         filename_ext = filename
         if self.number > 0:
             filename_ext += f"_{self.number + 1}"
@@ -156,7 +160,7 @@ class QuicRunner:
                 commands[1], detach=True, input=True
             )
 
-            # 서버: All Done 출력될 때까지 계속 대기
+            # 서버: 30초동안 대기
             output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process,))
             output_thread.start()
             print("Output rhead thread started")
@@ -194,15 +198,15 @@ class QuicRunner:
 | tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
         )
 
-        self.run_command(f"mkdir {filename}")
-        self.run_command(f"mv -f {filename_ext}.* {filename}/")
+        self.run_command(f"mkdir {foldername}")
+        self.run_command(f"mv -f {filename_ext}.* {foldername}/")
 
         self.run_command(
-            f"python loadSpinData.py -c -n {self.number + 1} ./{filename}",
+            f"python loadSpinData.py -c -n {self.number + 1} ./{foldername}",
         )
 
-        self.run_command(f"cp -rf {filename} {MSQUIC_LOG_PATH}/")
-        self.run_command(f"rm -rf {filename}")
+        self.run_command(f"cp -rf {foldername} {MSQUIC_LOG_PATH}/")
+        self.run_command(f"rm -rf {foldername}")
         self.run_command("rm -rf msquic_lttng0")
 
         self.run_command("tc qdisc del dev eth0 root")
