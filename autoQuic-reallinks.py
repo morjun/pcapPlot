@@ -53,7 +53,7 @@ class QuicRunner:
                 if ready:
                     line = process.stdout.readline()
                     print(line, end='')
-                    if "All Done" in line:
+                    if "All done" in line:
                         break
                     elif "Sent" in line or "sent" in line:
                         connectionEstablished = True
@@ -66,7 +66,7 @@ class QuicRunner:
                 if ready:
                     line = process.stdout.readline()
                     print(line, end='')
-                    if "All Done" in line:
+                    if "All done" in line:
                         break
                     elif "Data received" in line:
                         self.clientInitiated = True
