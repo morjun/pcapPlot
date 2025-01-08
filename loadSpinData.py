@@ -44,6 +44,10 @@ def loadData(args):
     arg_path_parts = splitted_path[1].split("_") # ['l0b0d0', 't0']
     parametric_path = arg_path_parts[0] # l0b0d0
 
+    time = arg_path_parts[1] # t0
+    time = time[1:] # 0
+    time_datetime = datetime.fromtimestamp(int(time))
+
     filename_prefix = parametric_path # 초기화
 
     if index > 1:
@@ -224,7 +228,7 @@ def loadData(args):
 
     if bandwidth >= 0 and prevTime > 0:
         stats_file.write(
-            f"{loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
+            f"{time_datetime}, {loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
         )
 
     lostFrame.to_csv(f"{filename_prefix}_lost.csv", index=False)
