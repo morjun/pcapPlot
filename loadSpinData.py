@@ -32,8 +32,6 @@ def loadData(args):
     spinFrame = None
     pathology = False
 
-    stats_file = open("stats.csv", "a", encoding="utf8")
-
     full_path = args.file[0] # 입력: .../l0b0d0_t0
     index = args.number # 입력: n
 
@@ -226,10 +224,12 @@ def loadData(args):
 
     print(f"Pathology: {pathology}")
 
-    if bandwidth >= 0 and prevTime > 0:
-        stats_file.write(
-            f"{time_datetime}, {loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
-        )
+
+    with open("stats.csv", "a", encoding="utf8") as stats_file:
+        if bandwidth >= 0 and prevTime > 0:
+            stats_file.write(
+                f"{time_datetime}, {loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
+            )
 
     lostFrame.to_csv(f"{filename_prefix}_lost.csv", index=False)
     cwndFrame.to_csv(f"{filename_prefix}_cwnd.csv", index=False)
@@ -244,7 +244,6 @@ def loadData(args):
     # combinedFrame = pd.merge_asof(combinedFrame, cwndFrame, on="time", direction="nearest")
     # combinedFrame.to_csv(f"{filename}_combined.csv", index=False)
 
-    stats_file.close()
     return spinFrame, throughputFrame, lostFrame, cwndFrame, wMaxFrame
 
 
