@@ -226,10 +226,13 @@ def loadData(args):
 
 
     with open("stats.csv", "a", encoding="utf8") as stats_file:
+        print(f"bandwidth: {bandwidth} prevTime: {prevTime}")
         if bandwidth >= 0 and prevTime > 0:
+            print(f"writing to stats.csv")
             stats_file.write(
                 f"{time_datetime}, {loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
             )
+            print(f"written to stats.csv")
 
     lostFrame.to_csv(f"{filename_prefix}_lost.csv", index=False)
     cwndFrame.to_csv(f"{filename_prefix}_cwnd.csv", index=False)
