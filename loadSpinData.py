@@ -30,6 +30,7 @@ def loadData(args):
     prevTime = 0
     numSpin = -1  # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
     spinFrame = None
+    pathology = False
 
     stats_file = open("stats.csv", "a", encoding="utf8")
 
@@ -215,9 +216,15 @@ def loadData(args):
     print(f"Loss reason 1(QUIC_TRACE_PACKET_LOSS_FACK): {numFack}개")
     print(f"Loss reason 2(QUIC_TRACE_PACKET_LOSS_PROBE): {numProbe}개")
 
+    # if avgThroughput < 5:
+    if numFack < numRack:
+        pathology = True
+
+    print(f"Pathology: {pathology}")
+
     if bandwidth >= 0 and prevTime > 0:
         stats_file.write(
-            f"{loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe} \n"
+            f"{loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
         )
 
     lostFrame.to_csv(f"{filename_prefix}_lost.csv", index=False)
