@@ -195,7 +195,7 @@ class QuicRunner:
             log_wrapper_process.stdin.write("\n")
             log_wrapper_process.stdin.flush()
 
-            print("엔터 키 전송 완료")
+            print("서버: 엔터 키 전송 완료")
 
             log_wrapper_process.wait()
 
@@ -204,10 +204,18 @@ class QuicRunner:
                 log_wrapper_process = self.run_command(commands[1], detach=True, input=True)
                 output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process, 30, False))
                 output_thread.start()
-                print("Output rhead thread started")
+                print("Output read thread started")
 
                 output_thread.join()
                 print("Output thread joined")
+
+                self.run_command("echo ''", input=True)
+                log_wrapper_process.stdin.write("\n")
+                log_wrapper_process.stdin.flush()
+
+                print("클라이언트: 엔터 키 전송 완료")
+
+                log_wrapper_process.wait()
 
                 if self.clientInitiated:
                     self.clientInitiated = False
