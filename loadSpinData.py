@@ -47,7 +47,7 @@ def loadData(args):
     if len(arg_path_parts) > 1:
         time = arg_path_parts[1] # t0
         time = time[1:] # 0
-        time_datetime = datetime.fromtimestamp(int(time))
+    time_datetime = datetime.fromtimestamp(int(time))
 
     filename_prefix = parametric_path # 초기화
 
@@ -88,12 +88,15 @@ def loadData(args):
 
     try:
         spinFrame = pd.read_csv(f"{filename_prefix}_spin.csv")
+        print(f"Loaded {filename_prefix}_spin.csv")
     except FileNotFoundError:
+        print(f"Loading {filename_prefix}.pcap(ng)")
         cap = None
         try:
             cap = pyshark.FileCapture(f"{filename_prefix}.pcapng")
         except FileNotFoundError:
             cap = pyshark.FileCapture(f"{filename_prefix}.pcap")
+        print(f"Loaded {filename_prefix}.pcap(ng)")
         loadStartTime = datetime.now()
         for packet in cap:
             if hasattr(packet, "quic"):
@@ -230,7 +233,7 @@ def loadData(args):
 
     with open(stats_path, "a", encoding="utf8") as stats_file:
         print(f"bandwidth: {bandwidth} prevTime: {prevTime}")
-        if bandwidth >= 0 and prevTime > 0:
+        if bandwidth >= 0 and prevTime > 0: # prevTime 0인 경우가 있음
             print(f"writing to stats.csv")
             stats_file.write(
                 f"{time_datetime}, {loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
