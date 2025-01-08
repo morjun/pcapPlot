@@ -185,7 +185,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
         )
         lossItem0 = pg.ScatterPlotItem(
             rackFrame["time"].values.flatten(),
-            rackFrame.mask(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_RACK, 1)["loss"].values.flatten(),
+            rackFrame.mask(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_RACK, 2)["loss"].values.flatten(),
             pen="r",
             symbol="star",
             symbolPen="r",
@@ -194,7 +194,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
         )
         lossItem1 = pg.ScatterPlotItem(
             fackFrame["time"].values.flatten(),
-            fackFrame.mask(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK, 1)["loss"].values.flatten(),
+            fackFrame.mask(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK, 2)["loss"].values.flatten(),
             pen="c",
             symbol="star",
             symbolPen="c",
@@ -203,7 +203,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
         )
         lossItem2 = pg.ScatterPlotItem(
             probeFrame["time"].values.flatten(),
-            probeFrame.mask(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE, 1)["loss"].values.flatten(),
+            probeFrame.mask(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE, 2)["loss"].values.flatten(),
             pen="y",
             symbol="star",
             symbolPen="y",
