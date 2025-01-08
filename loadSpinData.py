@@ -36,8 +36,9 @@ def loadData(args):
     index = args.number # 입력: n
 
     full_path = os.path.relpath(full_path)
-
     splitted_path = os.path.split(full_path) # ('...', 'l0b0d0_t0')
+    cwd = os.getcwd() # 현재 디렉토리
+    stats_path = os.path.join(cwd, "stats.csv")
 
     arg_path_parts = splitted_path[1].split("_") # ['l0b0d0', 't0']
     parametric_path = arg_path_parts[0] # l0b0d0
@@ -225,7 +226,7 @@ def loadData(args):
     print(f"Pathology: {pathology}")
 
 
-    with open("stats.csv", "a", encoding="utf8") as stats_file:
+    with open(stats_path, "a", encoding="utf8") as stats_file:
         print(f"bandwidth: {bandwidth} prevTime: {prevTime}")
         if bandwidth >= 0 and prevTime > 0:
             print(f"writing to stats.csv")
