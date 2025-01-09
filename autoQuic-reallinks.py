@@ -166,12 +166,12 @@ class QuicRunner:
         if isServer:
             commands = [
                 f"tshark -i eth0 -f 'quic' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
-                "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
+                "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Basic.Light",
             ]
         else:
             commands = [
                 f"tshark -i eth0 -f 'quic' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
-                f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose",
+                f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Basic.Light",
             ]
 
 
