@@ -243,7 +243,7 @@ def loadData(args):
         if bandwidth >= 0 and prevTime > 0: # prevTime 0인 경우가 있음
             print(f"writing to stats.csv")
             stats_file.write(
-                f"{time_datetime}, {loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
+                f"{time_datetime}, {index}, {loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
             )
             print(f"written to stats.csv")
 
