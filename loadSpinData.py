@@ -225,7 +225,12 @@ def loadData(args):
     print(f"Loss reason 2(QUIC_TRACE_PACKET_LOSS_PROBE): {numProbe}개")
 
     # if avgThroughput < 5:
-    if numFack < numRack:
+    rackRatio = 0
+    if numFack > 0:
+        rackRatio = numRack / numFack
+    else: 
+        rackRatio = 1
+    if rackRatio > 0.5 or avgThroughput < 5:
         pathology = True
 
     print(f"Pathology: {pathology}")
