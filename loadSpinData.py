@@ -11,6 +11,7 @@ QUIC_TRACE_PACKET_LOSS_RACK = 0
 QUIC_TRACE_PACKET_LOSS_FACK = 1
 QUIC_TRACE_PACKET_LOSS_PROBE = 2
 
+TIME_CUT_OFF = 20
 
 def loadData(args):
     times = np.array([], dtype=float)
@@ -28,6 +29,7 @@ def loadData(args):
     initialSpinTime = 0
     prevSpin = -1  # 처음 Short Header Packet 감지용
     prevTime = 0
+    prevTimeBefore20s = 0
     numSpin = -1  # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
     spinFrame = None
     pathology = False
@@ -39,6 +41,7 @@ def loadData(args):
     splitted_path = os.path.split(full_path) # ('...', 'l0b0d0_t0')
     cwd = os.getcwd() # 현재 디렉토리
     stats_path = os.path.join(cwd, "stats.csv")
+    stats_20s_path = os.path.join(cwd, "stats_20s.csv")
 
     arg_path_parts = splitted_path[1].split("_") # ['l0b0d0', 't0']
     parametric_path = arg_path_parts[0] # l0b0d0
@@ -133,6 +136,8 @@ def loadData(args):
                             else:
                                 initialSpinTime = time
                             prevTime = time
+                            if prevTime < TIME_CUT_OFF:
+                                prevTimeBefore20s = prevTime
                         times = np.append(times, float(time))
                         try:
                             spins = np.append(spins, int(spin))
@@ -198,25 +203,34 @@ def loadData(args):
     cwndFrame = pd.DataFrame({"time": cwndTimes, "cwnd": cwnds})
     wMaxFrame = pd.DataFrame({"time": wMaxTimes, "wMax": wMaxes})
     avgThroughput = statistics.mean(throughputFrame["All Packets"]) / 1000000
+    avgThroughput_before_20s = statistics.mean(throughputFrame[throughputFrame["Interval start"] < TIME_CUT_OFF]["All Packets"]) / 1000000
 
     if prevTime > 0:
         print(prevTime, initialSpinTime)
         if prevTime != initialSpinTime:
             spinFrequency = numSpin / (2 * (prevTime - initialSpinTime))
+            spinFrequency_before_20s = numSpin / (2 * (prevTimeBefore20s - initialSpinTime))
         else:
             print("DIVISON BY ZERO")
             exit(1)
         print(f"첫 short packet time: {initialSpinTime}초")
         print(f"마지막 spin time: {prevTime}초")
+
         print(f"평균 spin frequency: {spinFrequency}Hz")
+        print(f"20초 이전 평균 spin frequency: {spinFrequency_before_20s}Hz")
     if numSpin >= 0:
         print(f"총 spin 수 : {numSpin}")
         print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}초")
 
     numLosses = len(lostFrame["loss"])
+
     numRack = len(lostFrame[lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_RACK])
     numFack = len(lostFrame[lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK])
     numProbe = len(lostFrame[lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE])
+
+    numRack_before_20s = len(lostFrame[(lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_RACK) & (lostFrame["time"] < TIME_CUT_OFF)])
+    numFack_before_20s = len(lostFrame[(lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK) & (lostFrame["time"] < TIME_CUT_OFF)])
+    numProbe_before_20s = len(lostFrame[(lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE) & (lostFrame["time"] < TIME_CUT_OFF)])
 
     print(f"평균 throughput: {avgThroughput}Mbps")
     print(f"Lost 개수: {numLosses}개")
@@ -246,6 +260,14 @@ def loadData(args):
                 f"{time_datetime}, {index}, {loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
             )
             print(f"written to stats.csv")
+    
+    with open(stats_20s_path, "a", encoding="utf8") as stats_20s_file:
+        if bandwidth >= 0 and prevTime > 0:
+            print(f"writing to stats_20s.csv")
+            stats_20s_file.write(
+                f"{time_datetime}, {index}, {loss}, {bandwidth}, {delay}, {spinFrequency_before_20s}, {avgThroughput_before_20s}, {numRack_before_20s}, {numFack_before_20s}, {numProbe_before_20s}, {pathology}\n"
+            )
+            print(f"written to stats_20s.csv")
 
     lostFrame.to_csv(f"{filename_prefix}_lost.csv", index=False)
     cwndFrame.to_csv(f"{filename_prefix}_cwnd.csv", index=False)
