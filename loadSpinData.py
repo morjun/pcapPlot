@@ -228,8 +228,10 @@ def loadData(args):
     rackRatio = 0
     if numFack > 0:
         rackRatio = numRack / numFack
-    else: 
+    elif numRack > 0: 
         rackRatio = 1
+    else:
+        rackRatio = 0
     if rackRatio > 0.5 or avgThroughput < 5:
         pathology = True
 
