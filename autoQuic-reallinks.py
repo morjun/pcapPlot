@@ -320,21 +320,23 @@ def main():
     if args.loss >= 0:
         lossRates = [args.loss]
     else:
-        lossRates = range(0, 11, 1)
+        # lossRates = range(0, 11, 1)
+        lossRates = [0.5, 2.7, 4.0]
     # bitRatesinMbps = range(0, 100)
     if args.delay >= 0:
         delays = [args.delay]
     else:
-        delays = range(0, 200, 5)
+        # delays = range(0, 200, 5)
+        delays = [10, 33, 60]
 
-    if args.loss < 0 and args.delay < 0:
-        try:
-            with open("lastValues.txt", "r", encoding="utf-8") as f:
-                lastValues = f.readlines()
-                lossRates = range(int(lastValues[0]), 11, 1)
-                delays = range(int(lastValues[1]), 200, 5)
-        except FileNotFoundError:
-            pass
+    # if args.loss < 0 and args.delay < 0:
+    #     try:
+    #         with open("lastValues.txt", "r", encoding="utf-8") as f:
+    #             lastValues = f.readlines()
+    #             lossRates = range(int(lastValues[0]), 11, 1)
+    #             delays = range(int(lastValues[1]), 200, 5)
+    #     except FileNotFoundError:
+    #         pass
 
     runner = QuicRunner(args)
     for i in range(args.number):
@@ -360,8 +362,8 @@ def main():
                     with open("lastValues.txt", "w", encoding="utf-8") as f:
                         for value in lastValues:
                             f.write(str(value) + "\n")
-            if args.loss < 0 and args.delay < 0:
-                delays = range(0, 200, 5)  # 한바퀴 돌고 리셋
+            # if args.loss < 0 and args.delay < 0:
+            #     delays = range(0, 200, 5)  # 한바퀴 돌고 리셋
 
 
 if __name__ == "__main__":
