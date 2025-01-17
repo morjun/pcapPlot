@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker
 
 import pandas as pd
+import numpy as np
 
 
 from PyQt5 import QtWidgets
@@ -64,7 +65,27 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
                 ctFrame["All Packets"].values.flatten(),
                 pen="b",
             )
+
         )
+
+    # 추세선 계산
+        bin_count = 20  # x축을 나눌 구간 수
+        bins = np.linspace(ctFrame["cwnd"].min(), ctFrame["cwnd"].max(), bin_count + 1)
+        ctFrame["bin"] = pd.cut(ctFrame["cwnd"], bins, labels=False)
+        
+        trend_data = ctFrame.groupby("bin").agg(
+            x_mean=("cwnd", "mean"),
+            y_mean=("All Packets", "mean")
+        ).dropna()
+        
+        # 추세선 그리기
+        trend_line = pg.PlotDataItem(
+            trend_data["x_mean"].values,
+            trend_data["y_mean"].values,
+            pen=pg.mkPen(color="r", width=2),
+            symbol=None
+        )
+        view5.addItem(trend_line)
 
     def drawGraph(self):
         # self.plotGraph = pg.PlotWidget()
