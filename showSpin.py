@@ -41,7 +41,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
         # self.plotGraph.show()
         # self.plotGraph.clear()
         # Set window name
-        self.setWindowTitle(self.args.file[0])
+        self.setWindowTitle(f"{self.args.file[0]} number {self.args.number}")
 
         self.drawGraph()
         self.drawTCGraph()
