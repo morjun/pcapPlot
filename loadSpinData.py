@@ -193,6 +193,21 @@ def loadData(args):
                     wMaxes = np.append(wMaxes, int(wMax))
                     wMaxTimes = np.append(wMaxTimes, float(logTime))
 
+    # 마지막에 0바이트 구간 컷
+    zero_count = 0
+    initial_zero_index = None
+    for row in throughputFrame.iterrows():
+        if initial_zero_index is None:
+            initial_zero_index = row[0]
+        if row[1]["All Packets"] == 0:
+            zero_count += 1
+        else:
+            zero_count = 0
+            initial_zero_index = None
+        if zero_count > 50:
+            throughputFrame = throughputFrame.drop(throughputFrame.index[initial_zero_index:])
+            break
+
     throughputFrame["All Packets"] = [
         # (x * 8 / 1000000) / throughputFrame["Interval start"][1]
         (x * 8) / throughputFrame["Interval start"][1]
