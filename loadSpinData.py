@@ -13,6 +13,9 @@ QUIC_TRACE_PACKET_LOSS_PROBE = 2
 
 TIME_CUT_OFF = 20
 
+
+# TODO: 클래스화, 함수화하고 msquic 및 quic-go용 서브클래스 만들어서 다르게 동작하도록 구현
+
 def loadData(args):
     times = np.array([], dtype=float)
     lostTimes = np.array([], dtype=float)

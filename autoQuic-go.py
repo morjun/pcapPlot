@@ -53,10 +53,11 @@ class QuicRunner:
                 if ready:
                     line = process.stdout.readline()
                     print(line, end='')
-                    if "All done" in line:
-                        break
-                    elif "Sent" in line or "sent" in line:
+                    if "Data sent" in line:
                         connectionEstablished = True
+                        sleep(5)
+                        break
+                    # elif "Sent" in line or "sent" in line:
                 else:
                     print("Timeout: No output within the specified time.")
                     break
@@ -66,9 +67,9 @@ class QuicRunner:
                 if ready:
                     line = process.stdout.readline()
                     print(line, end='')
-                    if "All done" in line:
+                    if "</html>" in line:
                         break
-                    elif "Data received" in line:
+                    elif "200 OK" in line:
                         self.clientInitiated = True
                 else:
                     print("Timeout: No output within the specified time.")
@@ -150,27 +151,27 @@ class QuicRunner:
         self.run_command("rm l*b*d*.csv")
         self.run_command("rm -rf l*b*d*/")
 
-        self.run_command("tc qdisc del dev eth0 root netem")
+        self.run_command("tc qdisc del dev enp3s0 root netem")
 
         if isServer:
             if bandwidth > 0:
                 self.run_command(
-                    f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {bandwidth}mbit",
+                    f"tc qdisc add dev enp3s0 root netem loss {lossRate}% delay {delay}ms rate {bandwidth}mbit",
                 )
             else:
                 self.run_command(
-                    f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms",
+                    f"tc qdisc add dev enp3s0 root netem loss {lossRate}% delay {delay}ms",
                 )
 
         commands = []
         if isServer:
             commands = [
-                f"tshark -i eth0 -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
+                f"tshark -i enp3s0 -f 'udp port 6121' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
                 "go run .",
             ]
         else:
             commands = [
-                f"tshark -i eth0 -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
+                f"tshark -i enp3s0 -f 'udp port 6121' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
                 f"go run . https://163.152.161.48:6121/demo/tiles",
             ]
 
@@ -179,43 +180,37 @@ class QuicRunner:
         print(f"tshark_pid: {tshark_process.pid}")
 
         if isServer:
-            log_wrapper_process = self.run_command(
+            quic_go_process = self.run_command(
                 commands[1], detach=True, input=True
             )
 
             # 서버: 30초동안 대기
-            output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process,))
+            output_thread = threading.Thread(target=self.read_output, args=(quic_go_process,))
             output_thread.start()
             print("Output rhead thread started")
 
             output_thread.join()
             print("Output thread joined")
 
-            self.run_command("echo ''", input=True)
-            log_wrapper_process.stdin.write("\n")
-            log_wrapper_process.stdin.flush()
+            # self.run_command("echo ''", input=True)
+            # quic_go_process.stdin.write("\n")
+            # quic_go_process.stdin.flush()
 
-            print("서버: 엔터 키 전송 완료")
+            self.send_signal_to_process(quic_go_process, signal=signal.SIGINT)
 
-            log_wrapper_process.wait()
+            print("서버: Interrupt signal 전송 완료")
 
         else:
             while True:
-                log_wrapper_process = self.run_command(commands[1], detach=True, input=True, cwd=f"{QUICGO_PATH}/example/client")
-                output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process, 30, False))
+                quic_go_process = self.run_command(commands[1], detach=True, input=True, cwd=f"{QUICGO_PATH}/example/client")
+                output_thread = threading.Thread(target=self.read_output, args=(quic_go_process, 30, False))
                 output_thread.start()
                 print("Output read thread started")
 
                 output_thread.join()
                 print("Output thread joined")
 
-                self.run_command("echo ''", input=True)
-                log_wrapper_process.stdin.write("\n")
-                log_wrapper_process.stdin.flush()
-
-                print("클라이언트: 엔터 키 전송 완료")
-
-                log_wrapper_process.wait()
+                quic_go_process.wait()
 
                 if self.clientInitiated:
                     self.clientInitiated = False
@@ -249,7 +244,7 @@ class QuicRunner:
         self.run_command(f"rm -rf {foldername}")
         self.run_command("rm -rf msquic_lttng0")
 
-        self.run_command("tc qdisc del dev eth0 root")
+        self.run_command("tc qdisc del dev enp3s0 root")
 
         if not isServer:
             self.run_command(f"cp {SSLKEYLOGFILE} {QUICGO_LOG_PATH}/")
