@@ -174,29 +174,29 @@ class DataLoader:
                                     spin = 1
                                 else:  # False
                                     spin = 0
-                            if prevSpin != spin:
+                            if self.prevSpin != spin:
                                 self.numSpin += 1
                                 if self.prevTime != 0:
                                     rtt = time - self.prevTime
                                     self.rtts = np.append(self.rtts, float(rtt))  # spin -> rtt 계산
                                 else:
-                                    initialSpinTime = time
+                                    self.initialSpinTime = time
                                 self.prevTime = time
                                 if self.prevTime < TIME_CUT_OFF:
                                     self.prevTimeBefore20s = self.prevTime
-                            times = np.append(times, float(time))
+                            self.times = np.append(self.times, float(time))
                             try:
-                                spins = np.append(spins, int(spin))
+                                self.spins = np.append(self.spins, int(spin))
                             except ValueError:
                                 if spin == "True":
-                                    spins = np.append(spins, 1)
+                                    self.spins = np.append(self.spins, 1)
                                 else:
-                                    spins = np.append(spins, 0)
-                            prevSpin = spin
+                                    self.spins = np.append(self.spins, 0)
+                            self.prevSpin = spin
                             if (int(packet.number) % 1000) == 0:
                                 print(f"{packet.number} packets processed")
             print(f"load time: {datetime.now() - loadStartTime}")
-            self.spinFrame = pd.DataFrame({"time": times, "spin": spins})
+            self.spinFrame = pd.DataFrame({"time": self.times, "spin": self.spins})
             self.spinFrame.to_csv(f"{self.filename_prefix}_spin.csv", index=False)
     
     def make_csv(self):
@@ -353,8 +353,8 @@ class quicGoLoader(DataLoader):
             lines = f.readlines()
             initialLogTime = 0
             for line in lines:
-                # timeString = str(line.split(" ")[1])
-                timeString = re.search(r"^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})", line).group(1)
+                timeString = str(line.split(" ")[:2])
+                # timeString = re.search(r"^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})", line).group(1)
 
                 if "Handshake start" in line:
                     initialLogTime = datetime.strptime(

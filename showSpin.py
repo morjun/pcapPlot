@@ -11,7 +11,7 @@ import numpy as np
 
 from PyQt5 import QtWidgets
 import pyqtgraph as pg
-from loadSpinData import loadData
+from loadSpinData import quicGoLoader, msquicLoader 
 
 QUIC_TRACE_PACKET_LOSS_RACK = 0
 QUIC_TRACE_PACKET_LOSS_FACK = 1
@@ -20,14 +20,21 @@ QUIC_TRACE_PACKET_LOSS_PROBE = 2
 class MainWindow(QtWidgets.QMainWindow):  # main view
     def __init__(self, args):
         super().__init__()
+        loader = None
+        if args.type == "msquic":
+            loader = msquicLoader(args)
+        elif args.type == "quic-go":
+            loader = quicGoLoader(args)
+
         self.args = args
+
         (
             self.spinFrame,
             self.throughputFrame,
             self.lostFrame,
             self.cwndFrame,
             self.wMaxFrame,
-        ) = loadData(self.args)
+        ) = loader.load_data()
 
         self.layoutWidget = pg.GraphicsLayoutWidget()
         self.layoutWidget.setBackground("w")
@@ -356,6 +363,15 @@ def main():
         type=int,
         default=1,
         help="n-th test in a single epoch",
+        required=False,
+    )
+
+    parser.add_argument (
+        "-t",
+        "--type",
+        type=str,
+        default="msquic",
+        help="Type of log file (msquic or quic-go)",
         required=False,
     )
 

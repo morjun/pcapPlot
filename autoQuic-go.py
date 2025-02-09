@@ -10,13 +10,13 @@ import select
 from datetime import datetime
 
 QUICGO_LOG_PATH = "/quicgo_logs"
-QUICGO_PATH = "/home/woochan/quic-go"
-SSLKEYLOGFILE = f"{QUICGO_PATH}/example/sslkey.log"
-
 
 class QuicRunner:
     def __init__(self, args):
+        self.quic_go_path = args.quic_go_path 
+        self.ssl_key_log_file = f"{self.quic_go_path}/example/sslkey.log"
         self.args = args
+        self.interface = args.interface
         self.bandwidth = args.bandwidth
         self.isServer = args.server
         self.clientInitiated = False
@@ -84,8 +84,10 @@ class QuicRunner:
             # process.terminate()  # Optional: terminate the process
 
     def run_command(
-        self, command, shell=False, cwd=f"{QUICGO_PATH}/example", detach=False, input=False
+        self, command, cwd = None, shell=False, detach=False, input=False
     ):
+        if cwd is None:
+            cwd = f"{self.quic_go_path}/example"
         print(f"명령 입력: {command}")
         os.chdir(cwd)
         args = shlex.split(command)
@@ -151,28 +153,28 @@ class QuicRunner:
         self.run_command("rm l*b*d*.csv")
         self.run_command("rm -rf l*b*d*/")
 
-        self.run_command("tc qdisc del dev enp3s0 root netem")
+        self.run_command(f"tc qdisc del dev {self.interface} root netem")
 
         if isServer:
             if bandwidth > 0:
                 self.run_command(
-                    f"tc qdisc add dev enp3s0 root netem loss {lossRate}% delay {delay}ms rate {bandwidth}mbit",
+                    f"tc qdisc add dev {self.interface} root netem loss {lossRate}% delay {delay}ms rate {bandwidth}mbit",
                 )
             else:
                 self.run_command(
-                    f"tc qdisc add dev enp3s0 root netem loss {lossRate}% delay {delay}ms",
+                    f"tc qdisc add dev {self.interface} root netem loss {lossRate}% delay {delay}ms",
                 )
 
         commands = []
         if isServer:
             commands = [
-                f"tshark -i enp3s0 -f 'udp port 6121' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
+                f"tshark -i {self.interface} -f 'udp port 6121' -w {filename_ext}.pcap -o tls.keylog_file:{self.ssl_key_log_file}",
                 "go run .",
             ]
         else:
             commands = [
-                f"tshark -i enp3s0 -f 'udp port 6121' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
-                f"go run . https://163.152.161.48:6121/demo/tiles",
+                f"tshark -i {self.interface} -f 'udp port 6121' -w {filename_ext}.pcap -o tls.keylog_file:{self.ssl_key_log_file}",
+                f"go run . https://{self.serverIp}:6121/demo/tiles",
             ]
 
 
@@ -202,7 +204,7 @@ class QuicRunner:
 
         else:
             while True:
-                quic_go_process = self.run_command(commands[1], detach=True, input=True, cwd=f"{QUICGO_PATH}/example/client")
+                quic_go_process = self.run_command(commands[1], detach=True, input=True, cwd=f"{self.quic_go_path}/example/client")
                 output_thread = threading.Thread(target=self.read_output, args=(quic_go_process, 30, False))
                 output_thread.start()
                 print("Output read thread started")
@@ -244,10 +246,10 @@ class QuicRunner:
         self.run_command(f"rm -rf {foldername}")
         self.run_command("rm -rf msquic_lttng0")
 
-        self.run_command("tc qdisc del dev enp3s0 root")
+        self.run_command(f"tc qdisc del dev {self.interface} root")
 
         if not isServer:
-            self.run_command(f"cp {SSLKEYLOGFILE} {QUICGO_LOG_PATH}/")
+            self.run_command(f"cp {self.ssl_key_log_file} {QUICGO_LOG_PATH}/")
 
         print("Run complete")
 
@@ -304,6 +306,22 @@ def main():
         "--target",
         type=str,
         help="Target IP address (required in --client mode)",
+    )
+
+    parser.add_argument(
+        "--interface",
+        type=str,
+        default="enp3s0",
+        help="Network interface to use",
+        required=False,
+    )
+
+    parser.add_argument(
+        "-p",
+        "--quic-go-path",
+        type=str,
+        default="/home/woochan/quic-go",
+        help="Path to the quic-go directory",
     )
 
     args = parser.parse_args()
