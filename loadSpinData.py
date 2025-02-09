@@ -13,295 +13,384 @@ QUIC_TRACE_PACKET_LOSS_PROBE = 2
 
 TIME_CUT_OFF = 20
 
+class DataLoader:
+    def __init__(self, args):
+        self.args = args
+        self.times = np.array([], dtype=float)
+        self.lostTimes = np.array([], dtype=float)
+        self.cwndTimes = np.array([], dtype=float)
+        self.wMaxTimes = np.array([], dtype=float)
 
-# TODO: 클래스화, 함수화하고 msquic 및 quic-go용 서브클래스 만들어서 다르게 동작하도록 구현
+        self.lossReasons = np.array([], dtype=int)
+        self.spins = np.array([], dtype=int)
+        self.rtts = np.array([], dtype=float)
+        self.cwnds = np.array([], dtype=int)
+        self.wMaxes = np.array([], dtype=int)
 
-def loadData(args):
-    times = np.array([], dtype=float)
-    lostTimes = np.array([], dtype=float)
-    cwndTimes = np.array([], dtype=float)
-    wMaxTimes = np.array([], dtype=float)
+        self.throughputFrame = None
+        self.spinFrame = None
+        self.lostFrame = None
+        self.cwndFrame = None
+        self.wMaxFrame = None
 
-    lossReasons = np.array([], dtype=int)
-    spins = np.array([], dtype=int)
-    rtts = np.array([], dtype=float)
-    cwnds = np.array([], dtype=int)
-    wMaxes = np.array([], dtype=int)
+        self.initialTime = 0
+        self.initialSpinTime = 0
+        self.prevSpin = -1  # 처음 Short Header Packet 감지용
+        self.prevTime = 0
+        self.prevTimeBefore20s = 0
+        self.numSpin = -1  # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
 
-    initialTime = 0
-    initialSpinTime = 0
-    prevSpin = -1  # 처음 Short Header Packet 감지용
-    prevTime = 0
-    prevTimeBefore20s = 0
-    numSpin = -1  # 처음 Short Header Packet의 spin bit 0이 발견되는 순간 spin 횟수 0
-    spinFrame = None
-    pathology = False
+        self.full_path = None
+        self.parametric_path = None
+        self.filename_prefix = None
+        self.stats_path = None
+        self.stats_20s_path = None
 
-    full_path = args.file[0] # 입력: .../l0b0d0_t0
-    index = args.number # 입력: n
+        self.time_datetime = None
 
-    full_path = os.path.relpath(full_path)
-    splitted_path = os.path.split(full_path) # ('...', 'l0b0d0_t0')
-    cwd = os.getcwd() # 현재 디렉토리
-    stats_path = os.path.join(cwd, "stats.csv")
-    stats_20s_path = os.path.join(cwd, "stats_20s.csv")
+        self.loss = 2.7
+        self.bandwidth = 17
+        self.delay = 33
 
-    arg_path_parts = splitted_path[1].split("_") # ['l0b0d0', 't0']
-    parametric_path = arg_path_parts[0] # l0b0d0
+        self.index = 1
+        self.port = 0 
 
-    time = 0
-    if len(arg_path_parts) > 1:
-        time = arg_path_parts[1] # t0
-        time = time[1:] # 0
-    time_datetime = datetime.fromtimestamp(int(time))
+        self.spinFrame = None
+        self.pathology = False
+    
+    def parse_path(self):
+        self.full_path = self.args.file[0] # 입력: .../l0b0d0_t0
+        self.index = self.args.number # 입력: n
 
-    filename_prefix = parametric_path # 초기화
+        self.full_path = os.path.relpath(self.full_path)
+        splitted_path = os.path.split(self.full_path) # ('...', 'l0b0d0_t0')
+        cwd = os.getcwd() # 현재 디렉토리
 
-    if index > 1:
-        filename_prefix = f"{parametric_path}_{index}" # l0b0d0_n
+        self.stats_path = os.path.join(cwd, "stats.csv") # 상위 디렉토리에 stats.csv를 저장하기 위해 경로 변경 전에 현재 경로를 저장
+        self.stats_20s_path = os.path.join(cwd, "stats_20s.csv")
 
-    print(f"filename prefix: {filename_prefix}")
+        arg_path_parts = splitted_path[1].split("_") # ['l0b0d0', 't0']
+        self.parametric_path = arg_path_parts[0] # l0b0d0
 
-    filename_reg = r"l(\d+(.\d+)?)b(\d+)d(\d+)"
-    filename_reg = re.compile(filename_reg)
-    filename_match = filename_reg.match(filename_prefix)
+        time = 0
+        if len(arg_path_parts) > 1:
+            time = arg_path_parts[1] # t0
+            time = time[1:] # 0
 
-    loss = float(filename_match.group(1))
-    bandwidth = int(filename_match.group(3))
-    delay = int(filename_match.group(4))
+        self.time_datetime = datetime.fromtimestamp(int(time))
+        self.filename_prefix = self.parametric_path # 초기화
 
-    print(f"loss: {loss}, bandwidth: {bandwidth}, delay: {delay}")
+        if self.index > 1:
+            self.filename_prefix = f"{self.parametric_path}_{self.index}" # l0b0d0_n
 
-    # full_path = os.path.join(splitted_path[0], filename_prefix.split("_")[0])
+        print(f"filename prefix: {self.filename_prefix}")
 
-    print(f"full path: {full_path}")
-    os.chdir(full_path)
+        filename_reg = r"l(\d+(.\d+)?)b(\d+)d(\d+)"
+        filename_reg = re.compile(filename_reg)
+        filename_match = filename_reg.match(self.filename_prefix)
 
-    if args.csv:
-        tempFrame = pd.read_csv(f"{filename_prefix}.csv")
+        self.loss = float(filename_match.group(1))
+        self.bandwidth = int(filename_match.group(3))
+        self.delay = int(filename_match.group(4))
+
+        print(f"loss: {self.loss}, bandwidth: {self.bandwidth}, delay: {self.delay}")
+
+        # self.full_path = os.path.join(splitted_path[0], filename_prefix.split("_")[0])
+
+        print(f"full path: {self.full_path}")
+        os.chdir(self.full_path)
+    
+    def thorughput_csv_convert(self):
+        tempFrame = pd.read_csv(f"{self.filename_prefix}.csv")
         tempFrame = tempFrame[["Start", "Bytes"]]
         tempFrame.rename(
             columns={"Start": "Interval start", "Bytes": "All Packets"}, inplace=True
         )
-        tempFrame.to_csv(f"{filename_prefix}.csv", index=False)
+        tempFrame.to_csv(f"{self.filename_prefix}.csv", index=False)
+    
+    def load_throughput(self):
+        self.throughputFrame = pd.read_csv(f"{self.filename_prefix}.csv")
+        # 마지막에 0바이트 구간 컷
+        zero_count = 0
+        initial_zero_index = None
+        for row in self.throughputFrame.iterrows():
+            if initial_zero_index is None:
+                initial_zero_index = row[0]
+            if row[1]["All Packets"] == 0:
+                zero_count += 1
+            else:
+                zero_count = 0
+                initial_zero_index = None
+            if zero_count > 50:
+                self.throughputFrame = self.throughputFrame.drop(self.throughputFrame.index[initial_zero_index:])
+                break
 
-    file_ports = {"interop": 4433, "samplequic": 4567}
-    port = 0
-    if filename_prefix not in file_ports:
-        port = 4567
-    else:
-        port = file_ports[filename_prefix]
-
-    try:
-        spinFrame = pd.read_csv(f"{filename_prefix}_spin.csv")
-        print(f"Loaded {filename_prefix}_spin.csv")
-    except FileNotFoundError:
-        print(f"Loading {filename_prefix}.pcap(ng)")
-        cap = None
+        self.throughputFrame["All Packets"] = [
+            # (x * 8 / 1000000) / self.throughputFrame["Interval start"][1]
+            (x * 8) / self.throughputFrame["Interval start"][1]
+            for x in self.throughputFrame["All Packets"]
+        ]  # Bp100ms -> Mbps
+    
+    def load_log(self):
+        return
+    
+    def load_spin(self):
         try:
-            cap = pyshark.FileCapture(f"{filename_prefix}.pcapng")
+            self.spinFrame = pd.read_csv(f"{self.filename_prefix}_spin.csv")
+            print(f"Loaded {self.filename_prefix}_spin.csv")
         except FileNotFoundError:
-            cap = pyshark.FileCapture(f"{filename_prefix}.pcap")
-        print(f"Loaded {filename_prefix}.pcap(ng)")
-        loadStartTime = datetime.now()
-        for packet in cap:
-            if hasattr(packet, "quic"):
-                if initialTime == 0:  # int
-                    initialTime = (
-                        packet.sniff_time.timestamp()
+            print(f"Loading {self.filename_prefix}.pcap(ng)")
+            cap = None
+            try:
+                cap = pyshark.FileCapture(f"{self.filename_prefix}.pcapng")
+            except FileNotFoundError:
+                cap = pyshark.FileCapture(f"{self.filename_prefix}.pcap")
+            print(f"Loaded {self.filename_prefix}.pcap(ng)")
+            loadStartTime = datetime.now()
+            for packet in cap:
+                if hasattr(packet, "quic"):
+                    if self.initialTime == 0:  # int
+                        self.initialTime = (
+                            packet.sniff_time.timestamp()
+                        )  # Initial 패킷의 전송을 기준 시각으로
+
+                        initialTime_datetime = datetime.fromtimestamp(self.initialTime)
+
+                        # if initialTime_datetime.hour > 12:
+                        #     initialTime_datetime = initialTime_datetime.replace(
+                        #         hour=initialTime_datetime.hour - 12,
+                        #     )
+
+                        # initialTime = initialTime_datetime.timestamp()
+
+                        print(f"Initial time: {self.initialTime}")
+                        print(f"as datetime: {initialTime_datetime}")
+                    if hasattr(packet.quic, "spin_bit"):
+                        if packet.udp.srcport == str(self.port):  # 서버가 전송한 패킷만
+                            time = packet.sniff_time.timestamp() - self.initialTime
+                            spin = packet.quic.spin_bit
+                            if type(spin) == str:
+                                if spin == "True":
+                                    spin = 1
+                                else:  # False
+                                    spin = 0
+                            if prevSpin != spin:
+                                self.numSpin += 1
+                                if self.prevTime != 0:
+                                    rtt = time - self.prevTime
+                                    self.rtts = np.append(self.rtts, float(rtt))  # spin -> rtt 계산
+                                else:
+                                    initialSpinTime = time
+                                self.prevTime = time
+                                if self.prevTime < TIME_CUT_OFF:
+                                    self.prevTimeBefore20s = self.prevTime
+                            times = np.append(times, float(time))
+                            try:
+                                spins = np.append(spins, int(spin))
+                            except ValueError:
+                                if spin == "True":
+                                    spins = np.append(spins, 1)
+                                else:
+                                    spins = np.append(spins, 0)
+                            prevSpin = spin
+                            if (int(packet.number) % 1000) == 0:
+                                print(f"{packet.number} packets processed")
+            print(f"load time: {datetime.now() - loadStartTime}")
+            self.spinFrame = pd.DataFrame({"time": times, "spin": spins})
+            self.spinFrame.to_csv(f"{self.filename_prefix}_spin.csv", index=False)
+    
+    def make_csv(self):
+        self.lostFrame = pd.DataFrame({"time": self.lostTimes, "loss": self.lossReasons})
+        self.cwndFrame = pd.DataFrame({"time": self.cwndTimes, "cwnd": self.cwnds})
+        self.wMaxFrame = pd.DataFrame({"time": self.wMaxTimes, "wMax": self.wMaxes})
+        avgThroughput = statistics.mean(self.throughputFrame["All Packets"]) / 1000000
+        avgThroughput_before_20s = statistics.mean(self.throughputFrame[self.throughputFrame["Interval start"] < TIME_CUT_OFF]["All Packets"]) / 1000000
+
+        if self.prevTime > 0:
+            print(self.prevTime, self.initialSpinTime)
+            if self.prevTime != self.initialSpinTime:
+                spinFrequency = self.numSpin / (2 * (self.prevTime - self.initialSpinTime))
+                spinFrequency_before_20s = self.numSpin / (2 * (self.prevTimeBefore20s - self.initialSpinTime))
+            else:
+                print("DIVISON BY ZERO")
+                exit(1)
+            print(f"첫 short packet time: {self.initialSpinTime}초")
+            print(f"마지막 spin time: {self.prevTime}초")
+
+            print(f"평균 spin frequency: {spinFrequency}Hz")
+            print(f"20초 이전 평균 spin frequency: {spinFrequency_before_20s}Hz")
+        if self.numSpin >= 0:
+            print(f"총 spin 수 : {self.numSpin}")
+            print(f"평균 rtt(spin bit 기준): {statistics.mean(self.rtts)}초")
+
+        numLosses = len(self.lostFrame["loss"])
+
+        numRack = len(self.lostFrame[self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_RACK])
+        numFack = len(self.lostFrame[self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK])
+        numProbe = len(self.lostFrame[self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE])
+
+        numRack_before_20s = len(self.lostFrame[(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_RACK) & (self.lostFrame["time"] < TIME_CUT_OFF)])
+        numFack_before_20s = len(self.lostFrame[(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK) & (self.lostFrame["time"] < TIME_CUT_OFF)])
+        numProbe_before_20s = len(self.lostFrame[(self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE) & (self.lostFrame["time"] < TIME_CUT_OFF)])
+
+        print(f"평균 throughput: {avgThroughput}Mbps")
+        print(f"Lost 개수: {numLosses}개")
+        print(f"Loss reason 0(QUIC_TRACE_PACKET_LOSS_RACK): {numRack}개")
+        print(f"Loss reason 1(QUIC_TRACE_PACKET_LOSS_FACK): {numFack}개")
+        print(f"Loss reason 2(QUIC_TRACE_PACKET_LOSS_PROBE): {numProbe}개")
+
+        # if avgThroughput < 5:
+        fackRatio = 0
+        if numRack > 0:
+            fackRatio = numFack / numRack
+        elif numFack > 0: 
+            fackRatio = 1
+        else:
+            fackRatio = 0
+        if fackRatio < 10 or avgThroughput < 5:
+            self.pathology = True
+
+        print(f"Pathology: {self.pathology}")
+
+
+        with open(self.stats_path, "a", encoding="utf8") as stats_file:
+            print(f"bandwidth: {self.bandwidth} prevTime: {self.prevTime}")
+            if self.bandwidth >= 0 and self.prevTime > 0: # prevTime 0인 경우가 있음
+                print("writing to stats.csv")
+                stats_file.write(
+                    f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {self.pathology}\n"
+                )
+                print("written to stats.csv")
+        
+        with open(self.stats_20s_path, "a", encoding="utf8") as stats_20s_file:
+            if self.bandwidth >= 0 and self.prevTime > 0:
+                print("writing to stats_20s.csv")
+                stats_20s_file.write(
+                    f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {spinFrequency_before_20s}, {avgThroughput_before_20s}, {numRack_before_20s}, {numFack_before_20s}, {numProbe_before_20s}, {self.pathology}\n"
+                )
+                print("written to stats_20s.csv")
+
+        self.lostFrame.to_csv(f"{self.filename_prefix}_lost.csv", index=False)
+        self.cwndFrame.to_csv(f"{self.filename_prefix}_cwnd.csv", index=False)
+        self.wMaxFrame.to_csv(f"{self.filename_prefix}_wMax.csv", index=False)
+
+        # cf1 = pd.merge_asof(spinFrame, lostFrame, on="time", direction="nearest", tolerance=0.01)
+        # cf2 = pd.merge_asof(lostFrame, spinFrame, on="time", direction="nearest", tolerance=0.01)
+        # cf3 = pd.concat([cf1, cf2[cf2['loss'].isnull()]]).sort_index()
+        # cf3 = pd.merge(spinFrame, lostFrame, on="time", how="outer", sort=True)
+
+        # combinedFrame = pd.merge_asof(spinFrame, lostFrame, on="time", direction="nearest")
+        # combinedFrame = pd.merge_asof(combinedFrame, cwndFrame, on="time", direction="nearest")
+        # combinedFrame.to_csv(f"{filename}_combined.csv", index=False)
+    
+    def load_data(self):
+        self.parse_path()
+        if self.args.csv:
+            self.thorughput_csv_convert()
+        self.load_throughput()
+        self.load_log()
+        self.load_spin()
+        return self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame, self.wMaxFrame
+
+class msquicLoader(DataLoader):
+    def __init__(self, args):
+        super().__init__(args)
+        self.file_ports = {"interop": 4433, "samplequic": 4567}
+        self.port = 4567
+    
+    def load_log(self):
+        with open(f"{self.filename_prefix}.log", encoding="utf8") as f:
+            lines = f.readlines()
+            initialLogTime = 0
+            for line in lines:
+                timeString = str(line.split("]")[2].replace("[", ""))
+                # if "[S][RX][0] LH Ver:" in line and "Type:I" in line: # 감지가 안 돼.. 어째서지?
+                if "Handshake start" in line:
+                    initialLogTime = datetime.strptime(
+                        timeString, "%H:%M:%S.%f"
                     )  # Initial 패킷의 전송을 기준 시각으로
 
-                    initialTime_datetime = datetime.fromtimestamp(initialTime)
+                    print(f"Initial Log time: {initialLogTime}")
+                    initialTime_datetime = datetime.fromtimestamp(self.initialTime)
+                    initialTime_datetime = initialTime_datetime.replace(
+                        year=initialLogTime.year,
+                        month=initialLogTime.month,
+                        day=initialLogTime.day,
+                    )
+                    timeDelta = initialTime_datetime - initialLogTime
+                    print(f"Time delta: {timeDelta}")
+                else:
+                    if initialLogTime == 0:
+                        continue
+                    logTime = (
+                        datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
+                    ).total_seconds()
+                    if "Lost: " in line and "[conn]" in line:
+                        lossReason = int(line.split("Lost: ")[1].split(" ")[0])
+                        self.lostTimes = np.append(self.lostTimes, float(logTime))
+                        self.lossReasons = np.append(self.lossReasons, int(lossReason))
+                    elif "OUT: " in line and "CWnd=" in line:
+                        cwnd = int(line.split("CWnd=")[1].split(" ")[0])
+                        self.cwnds = np.append(self.cwnds, int(cwnd))
+                        self.cwndTimes = np.append(self.cwndTimes, float(logTime))
+                    elif "WindowMax" in line:
+                        wMax = int(line.split("WindowMax=")[1].split(" ")[0])
+                        self.wMaxes = np.append(self.wMaxes, int(wMax))
+                        self.wMaxTimes = np.append(self.wMaxTimes, float(logTime))
 
-                    # if initialTime_datetime.hour > 12:
-                    #     initialTime_datetime = initialTime_datetime.replace(
-                    #         hour=initialTime_datetime.hour - 12,
-                    #     )
+        def load_spin(self):
+            if self.filename_prefix in self.file_ports:
+                self.port = self.file_ports[self.filename_prefix]
+            super().load_spin()
 
-                    # initialTime = initialTime_datetime.timestamp()
+class quicGoLoader(DataLoader):
+    def __init__(self, args):
+        super().__init__(args)
+        self.port = 6121
 
-                    print(f"Initial time: {initialTime}")
-                    print(f"as datetime: {initialTime_datetime}")
-                if hasattr(packet.quic, "spin_bit"):
-                    if packet.udp.srcport == str(port):  # 서버가 전송한 패킷만
-                        time = packet.sniff_time.timestamp() - initialTime
-                        spin = packet.quic.spin_bit
-                        if type(spin) == str:
-                            if spin == "True":
-                                spin = 1
-                            else:  # False
-                                spin = 0
-                        if prevSpin != spin:
-                            numSpin += 1
-                            if prevTime != 0:
-                                rtt = time - prevTime
-                                rtts = np.append(rtts, float(rtt))  # spin -> rtt 계산
-                            else:
-                                initialSpinTime = time
-                            prevTime = time
-                            if prevTime < TIME_CUT_OFF:
-                                prevTimeBefore20s = prevTime
-                        times = np.append(times, float(time))
-                        try:
-                            spins = np.append(spins, int(spin))
-                        except ValueError:
-                            if spin == "True":
-                                spins = np.append(spins, 1)
-                            else:
-                                spins = np.append(spins, 0)
-                        prevSpin = spin
-                        if (int(packet.number) % 1000) == 0:
-                            print(f"{packet.number} packets processed")
-        print(f"load time: {datetime.now() - loadStartTime}")
-        spinFrame = pd.DataFrame({"time": times, "spin": spins})
-        spinFrame.to_csv(f"{filename_prefix}_spin.csv", index=False)
+    def load_log(self):
+        with open(f"{self.filename_prefix}.log", encoding="utf8") as f:
+            lines = f.readlines()
+            initialLogTime = 0
+            for line in lines:
+                # timeString = str(line.split(" ")[1])
+                timeString = re.search(r"^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})", line).group(1)
 
-    throughputFrame = pd.read_csv(f"{filename_prefix}.csv")
-    with open(f"{filename_prefix}.log", encoding="utf8") as f:
-        lines = f.readlines()
-        initialLogTime = 0
-        for line in lines:
-            timeString = str(line.split("]")[2].replace("[", ""))
-            # if "[S][RX][0] LH Ver:" in line and "Type:I" in line: # 감지가 안 돼.. 어째서지?
-            if "Handshake start" in line:
-                initialLogTime = datetime.strptime(
-                    timeString, "%H:%M:%S.%f"
-                )  # Initial 패킷의 전송을 기준 시각으로
+                if "Handshake start" in line:
+                    initialLogTime = datetime.strptime(
+                        timeString, "%Y/%m/%d %H:%M:%S"
+                    )  # Initial 패킷의 전송을 기준 시각으로
 
-                print(f"Initial Log time: {initialLogTime}")
-                initialTime_datetime = datetime.fromtimestamp(initialTime)
-                initialTime_datetime = initialTime_datetime.replace(
-                    year=initialLogTime.year,
-                    month=initialLogTime.month,
-                    day=initialLogTime.day,
-                )
-                timeDelta = initialTime_datetime - initialLogTime
-                print(f"Time delta: {timeDelta}")
-            else:
-                if initialLogTime == 0:
-                    continue
-                logTime = (
-                    datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
-                ).total_seconds()
-                if "Lost: " in line and "[conn]" in line:
-                    lossReason = int(line.split("Lost: ")[1].split(" ")[0])
-                    lostTimes = np.append(lostTimes, float(logTime))
-                    lossReasons = np.append(lossReasons, int(lossReason))
-                elif "OUT: " in line and "CWnd=" in line:
-                    cwnd = int(line.split("CWnd=")[1].split(" ")[0])
-                    cwnds = np.append(cwnds, int(cwnd))
-                    cwndTimes = np.append(cwndTimes, float(logTime))
-                elif "WindowMax" in line:
-                    wMax = int(line.split("WindowMax=")[1].split(" ")[0])
-                    wMaxes = np.append(wMaxes, int(wMax))
-                    wMaxTimes = np.append(wMaxTimes, float(logTime))
+                    print(f"Initial Log time: {initialLogTime}")
 
-    # 마지막에 0바이트 구간 컷
-    zero_count = 0
-    initial_zero_index = None
-    for row in throughputFrame.iterrows():
-        if initial_zero_index is None:
-            initial_zero_index = row[0]
-        if row[1]["All Packets"] == 0:
-            zero_count += 1
-        else:
-            zero_count = 0
-            initial_zero_index = None
-        if zero_count > 50:
-            throughputFrame = throughputFrame.drop(throughputFrame.index[initial_zero_index:])
-            break
+                    initialTime_datetime = datetime.fromtimestamp(self.initialTime)
+                    timeDelta = 0
+                    if initialTime_datetime > initialLogTime:
+                        timeDelta = initialTime_datetime - initialLogTime
+                    else:
+                        timeDelta = initialLogTime - initialTime_datetime
+                    print(f"Time delta: {timeDelta}")
+                    # log time과 pcap time의 차이
 
-    throughputFrame["All Packets"] = [
-        # (x * 8 / 1000000) / throughputFrame["Interval start"][1]
-        (x * 8) / throughputFrame["Interval start"][1]
-        for x in throughputFrame["All Packets"]
-    ]  # Bp100ms -> Mbps
-
-    lostFrame = pd.DataFrame({"time": lostTimes, "loss": lossReasons})
-    cwndFrame = pd.DataFrame({"time": cwndTimes, "cwnd": cwnds})
-    wMaxFrame = pd.DataFrame({"time": wMaxTimes, "wMax": wMaxes})
-    avgThroughput = statistics.mean(throughputFrame["All Packets"]) / 1000000
-    avgThroughput_before_20s = statistics.mean(throughputFrame[throughputFrame["Interval start"] < TIME_CUT_OFF]["All Packets"]) / 1000000
-
-    if prevTime > 0:
-        print(prevTime, initialSpinTime)
-        if prevTime != initialSpinTime:
-            spinFrequency = numSpin / (2 * (prevTime - initialSpinTime))
-            spinFrequency_before_20s = numSpin / (2 * (prevTimeBefore20s - initialSpinTime))
-        else:
-            print("DIVISON BY ZERO")
-            exit(1)
-        print(f"첫 short packet time: {initialSpinTime}초")
-        print(f"마지막 spin time: {prevTime}초")
-
-        print(f"평균 spin frequency: {spinFrequency}Hz")
-        print(f"20초 이전 평균 spin frequency: {spinFrequency_before_20s}Hz")
-    if numSpin >= 0:
-        print(f"총 spin 수 : {numSpin}")
-        print(f"평균 rtt(spin bit 기준): {statistics.mean(rtts)}초")
-
-    numLosses = len(lostFrame["loss"])
-
-    numRack = len(lostFrame[lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_RACK])
-    numFack = len(lostFrame[lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK])
-    numProbe = len(lostFrame[lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE])
-
-    numRack_before_20s = len(lostFrame[(lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_RACK) & (lostFrame["time"] < TIME_CUT_OFF)])
-    numFack_before_20s = len(lostFrame[(lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK) & (lostFrame["time"] < TIME_CUT_OFF)])
-    numProbe_before_20s = len(lostFrame[(lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE) & (lostFrame["time"] < TIME_CUT_OFF)])
-
-    print(f"평균 throughput: {avgThroughput}Mbps")
-    print(f"Lost 개수: {numLosses}개")
-    print(f"Loss reason 0(QUIC_TRACE_PACKET_LOSS_RACK): {numRack}개")
-    print(f"Loss reason 1(QUIC_TRACE_PACKET_LOSS_FACK): {numFack}개")
-    print(f"Loss reason 2(QUIC_TRACE_PACKET_LOSS_PROBE): {numProbe}개")
-
-    # if avgThroughput < 5:
-    fackRatio = 0
-    if numRack > 0:
-        fackRatio = numFack / numRack
-    elif numFack > 0: 
-        fackRatio = 1
-    else:
-        fackRatio = 0
-    if fackRatio < 10 or avgThroughput < 5:
-        pathology = True
-
-    print(f"Pathology: {pathology}")
-
-
-    with open(stats_path, "a", encoding="utf8") as stats_file:
-        print(f"bandwidth: {bandwidth} prevTime: {prevTime}")
-        if bandwidth >= 0 and prevTime > 0: # prevTime 0인 경우가 있음
-            print(f"writing to stats.csv")
-            stats_file.write(
-                f"{time_datetime}, {index}, {loss}, {bandwidth}, {delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {pathology}\n"
-            )
-            print(f"written to stats.csv")
-    
-    with open(stats_20s_path, "a", encoding="utf8") as stats_20s_file:
-        if bandwidth >= 0 and prevTime > 0:
-            print(f"writing to stats_20s.csv")
-            stats_20s_file.write(
-                f"{time_datetime}, {index}, {loss}, {bandwidth}, {delay}, {spinFrequency_before_20s}, {avgThroughput_before_20s}, {numRack_before_20s}, {numFack_before_20s}, {numProbe_before_20s}, {pathology}\n"
-            )
-            print(f"written to stats_20s.csv")
-
-    lostFrame.to_csv(f"{filename_prefix}_lost.csv", index=False)
-    cwndFrame.to_csv(f"{filename_prefix}_cwnd.csv", index=False)
-    wMaxFrame.to_csv(f"{filename_prefix}_wMax.csv", index=False)
-
-    # cf1 = pd.merge_asof(spinFrame, lostFrame, on="time", direction="nearest", tolerance=0.01)
-    # cf2 = pd.merge_asof(lostFrame, spinFrame, on="time", direction="nearest", tolerance=0.01)
-    # cf3 = pd.concat([cf1, cf2[cf2['loss'].isnull()]]).sort_index()
-    # cf3 = pd.merge(spinFrame, lostFrame, on="time", how="outer", sort=True)
-
-    # combinedFrame = pd.merge_asof(spinFrame, lostFrame, on="time", direction="nearest")
-    # combinedFrame = pd.merge_asof(combinedFrame, cwndFrame, on="time", direction="nearest")
-    # combinedFrame.to_csv(f"{filename}_combined.csv", index=False)
-
-    return spinFrame, throughputFrame, lostFrame, cwndFrame, wMaxFrame
-
+                else:
+                    if initialLogTime == 0:
+                        continue
+                    logTime = (
+                        datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
+                    ).total_seconds()
+                    if "Lost-" in line and "Lost packet" in line:
+                        lossReason_indices = {"RACK": 0, "FACK": 1, "PROBE": 2}
+                        lossReason = lossReason_indices[line.split("Lost-")[1].split(":")[0]]
+                        self.lostTimes = np.append(self.lostTimes, float(logTime))
+                        self.lossReasons = np.append(self.lossReasons, int(lossReason))
+                    elif "Congestion limited: " in line and "window " in line:
+                        cwnd = int(line.split("window ")[1].split(" ")[0])
+                        self.cwnds = np.append(self.cwnds, int(cwnd))
+                        self.cwndTimes = np.append(self.cwndTimes, float(logTime))
+                    elif "WindowMax" in line:
+                        wMax = int(line.split("WindowMax=")[1].split(" ")[0])
+                        self.wMaxes = np.append(self.wMaxes, int(wMax))
+                        self.wMaxTimes = np.append(self.wMaxTimes, float(logTime))
 
 def main():
     parser = argparse.ArgumentParser(description="Show spin bit")
@@ -324,8 +413,23 @@ def main():
         required=False,
     )
 
+    parser.add_argument(
+        "-t",
+        "--type",
+        type=str,
+        default="msquic",
+        help="Type of the server",
+        required=False,
+    )
+
     args = parser.parse_args()
-    loadData(args)
+
+    if args.type == "msquic":
+        loader = msquicLoader(args)
+        loader.load_data()
+    elif args.type == "quic-go":
+        loader = quicGoLoader(args)
+        loader.load_data()
 
 
 if __name__ == "__main__":
