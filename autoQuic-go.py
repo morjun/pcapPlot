@@ -168,7 +168,7 @@ class QuicRunner:
         commands = []
         if isServer:
             commands = [
-                f"tshark -i {self.interface} -f 'udp port 6121' -w {filename_ext}.pcap -o tls.keylog_file:{self.ssl_sey_log_file}",
+                f"tshark -i {self.interface} -f 'udp port 6121' -w {filename_ext}.pcap -o tls.keylog_file:{self.ssl_key_log_file}",
                 "go run .",
             ]
         else:
