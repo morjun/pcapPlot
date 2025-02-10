@@ -7,6 +7,7 @@ import os
 import argparse
 import glob
 import select
+import psutil
 from datetime import datetime
 
 QUICGO_LOG_PATH = "/quicgo_logs"
@@ -36,6 +37,8 @@ class QuicRunner:
         elif os.name == "posix":
             # Linux
             # 도커 내부에서 실행해봤자, 의미 없음
+            for child in psutil.Process(pid).children(recursive=True):
+                child.kill()
             os.kill(pid, signal)
 
         print(f"Signal {signal} sent to PID {pid}")
@@ -198,7 +201,7 @@ class QuicRunner:
             # 서버: 30초동안 대기
             output_thread = threading.Thread(target=self.read_output, args=(quic_go_process,))
             output_thread.start()
-            print("Output rhead thread started")
+            print("Output thread started")
 
             output_thread.join()
             print("Output thread joined")
