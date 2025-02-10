@@ -46,10 +46,7 @@ class QuicRunner:
 
         if isServer:
             while True:
-                if connectionEstablished:
-                    ready, _, _ = select.select([process.stdout], [], [], )
-                else:
-                    ready, _, _ = select.select([process.stdout], [], [],) # Infinitely wait until the client initiates
+                ready, _, _ = select.select([process.stdout], [], [],) # Infinitely wait until the client initiates
                 if ready:
                     for fd in ready:
                         line = fd.readline()
