@@ -171,11 +171,6 @@ class DataLoader:
                         if packet.udp.srcport == str(self.port):  # 서버가 전송한 패킷만
                             time = packet.sniff_time.timestamp() - self.initialTime
                             spin = packet.quic.spin_bit
-                            if spin == "True" or spin == "1" or spin == "true" or spin == 1:
-                                spin = 1
-                            else:  # False
-                                spin = 0
-                            # print(f"spin: {spin}")
                             if self.prevSpin != spin:
                                 self.numSpin += 1
                                 if self.prevTime != 0:
@@ -187,8 +182,15 @@ class DataLoader:
                                 if self.prevTime < TIME_CUT_OFF:
                                     self.prevTimeBefore20s = self.prevTime
                             self.times = np.append(self.times, float(time))
-                            self.spins = np.append(self.spins, int(spin))
+                            try:
+                                self.spins = np.append(self.spins, int(spin))
+                            except ValueError:
+                                if spin == "True":
+                                    self.spins = np.append(self.spins, 1)
+                                else:
+                                    self.spins = np.append(self.spins, 0)
                             self.prevSpin = spin
+
                             if (int(packet.number) % 1000) == 0:
                                 print(f"{packet.number} packets processed")
                         # else:
