@@ -16,6 +16,7 @@ TIME_CUT_OFF = 20
 class DataLoader:
     def __init__(self, args):
         self.args = args
+        self.spin_supported = True
         self.times = np.array([], dtype=float)
         self.lostTimes = np.array([], dtype=float)
         self.cwndTimes = np.array([], dtype=float)
@@ -199,21 +200,15 @@ class DataLoader:
             print(f"load time: {datetime.now() - loadStartTime}")
             self.spinFrame = pd.DataFrame({"time": self.times, "spin": self.spins})
             self.spinFrame.to_csv(f"{self.filename_prefix}_spin.csv", index=False)
-    
-    def make_csv(self):
-        self.lostFrame = pd.DataFrame({"time": self.lostTimes, "loss": self.lossReasons})
-        self.cwndFrame = pd.DataFrame({"time": self.cwndTimes, "cwnd": self.cwnds})
-        self.wMaxFrame = pd.DataFrame({"time": self.wMaxTimes, "wMax": self.wMaxes})
-        avgThroughput = statistics.mean(self.throughputFrame["All Packets"]) / 1000000
-        avgThroughput_before_20s = statistics.mean(self.throughputFrame[self.throughputFrame["Interval start"] < TIME_CUT_OFF]["All Packets"]) / 1000000
 
-        if self.prevTime > 0:
+    def get_spin_stats(self):
+        if self.prevTime > 0: # spin handling
             print(self.prevTime, self.initialSpinTime)
             if self.prevTime != self.initialSpinTime:
                 spinFrequency = self.numSpin / (2 * (self.prevTime - self.initialSpinTime))
                 spinFrequency_before_20s = self.numSpin / (2 * (self.prevTimeBefore20s - self.initialSpinTime))
             else:
-                print("DIVISON BY ZERO")
+                print("DIVISION BY ZERO, perhaps spin bit is not supported by the library?")
                 exit(1)
             print(f"첫 short packet time: {self.initialSpinTime}초")
             print(f"마지막 spin time: {self.prevTime}초")
@@ -223,6 +218,20 @@ class DataLoader:
         if self.numSpin >= 0:
             print(f"총 spin 수 : {self.numSpin}")
             print(f"평균 rtt(spin bit 기준): {statistics.mean(self.rtts)}초")
+        
+        return spinFrequency, spinFrequency_before_20s
+    
+    def make_csv(self):
+        spinFrequency = 0
+        spinFrequency_before_20s = 0
+        self.lostFrame = pd.DataFrame({"time": self.lostTimes, "loss": self.lossReasons})
+        self.cwndFrame = pd.DataFrame({"time": self.cwndTimes, "cwnd": self.cwnds})
+        self.wMaxFrame = pd.DataFrame({"time": self.wMaxTimes, "wMax": self.wMaxes})
+        avgThroughput = statistics.mean(self.throughputFrame["All Packets"]) / 1000000
+        avgThroughput_before_20s = statistics.mean(self.throughputFrame[self.throughputFrame["Interval start"] < TIME_CUT_OFF]["All Packets"]) / 1000000
+
+        if self.spin_supported:
+            (spinFrequency, spinFrequency_before_20s) = self.get_spin_stats()
 
         numLosses = len(self.lostFrame["loss"])
 
@@ -253,22 +262,31 @@ class DataLoader:
 
         print(f"Pathology: {self.pathology}")
 
-
         with open(self.stats_path, "a", encoding="utf8") as stats_file:
             print(f"bandwidth: {self.bandwidth} prevTime: {self.prevTime}")
             if self.bandwidth >= 0 and self.prevTime > 0: # prevTime 0인 경우가 있음
                 print("writing to stats.csv")
-                stats_file.write(
-                    f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {self.pathology}\n"
-                )
+                if self.spin_supported:
+                    stats_file.write(
+                        f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {self.pathology}\n"
+                    )
+                else:
+                    stats_file.write(
+                        f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {self.pathology}\n"
+                    )
                 print("written to stats.csv")
         
         with open(self.stats_20s_path, "a", encoding="utf8") as stats_20s_file:
             if self.bandwidth >= 0 and self.prevTime > 0:
                 print("writing to stats_20s.csv")
-                stats_20s_file.write(
-                    f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {spinFrequency_before_20s}, {avgThroughput_before_20s}, {numRack_before_20s}, {numFack_before_20s}, {numProbe_before_20s}, {self.pathology}\n"
-                )
+                if self.spin_supported:
+                    stats_20s_file.write(
+                        f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {spinFrequency_before_20s}, {avgThroughput_before_20s}, {numRack_before_20s}, {numFack_before_20s}, {numProbe_before_20s}, {self.pathology}\n"
+                    )
+                else:
+                    stats_20s_file.write(
+                        f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {avgThroughput_before_20s}, {numRack_before_20s}, {numFack_before_20s}, {numProbe_before_20s}, {self.pathology}\n"
+                    )
                 print("written to stats_20s.csv")
 
         self.lostFrame.to_csv(f"{self.filename_prefix}_lost.csv", index=False)
@@ -349,6 +367,7 @@ class quicGoLoader(DataLoader):
     def __init__(self, args):
         super().__init__(args)
         self.port = 6121
+        self.spin_supported = False
 
     def load_log(self):
         with open(f"{self.filename_prefix}.log", encoding="utf8") as f:
