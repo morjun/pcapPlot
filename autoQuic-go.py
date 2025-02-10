@@ -63,7 +63,7 @@ class QuicRunner:
                     break
         else:
             while True:
-                ready, _, _ = select.select([process.stdout], [], [], timeout)
+                ready, _, _ = select.select([process.stdout, process.stderr], [], [], timeout)
                 if ready:
                     line = process.stdout.readline()
                     print(line, end='')
