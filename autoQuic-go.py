@@ -15,7 +15,7 @@ QUICGO_LOG_PATH = "/quicgo_logs"
 class QuicRunner:
     def __init__(self, args):
         self.quic_go_path = args.quic_go_path 
-        self.ssl_key_log_file = f"{self.quic_go_path}/example/sslkey.log"
+        self.ssl_key_log_file = f"{self.quic_go_path}/example/client/sslkey.log"
         self.args = args
         self.interface = args.interface
         self.bandwidth = args.bandwidth
@@ -263,7 +263,7 @@ class QuicRunner:
         self.run_command(f"tc qdisc del dev {self.interface} root")
 
         if not isServer:
-            self.run_command(f"cp {self.quic_go_path}/example/client/{self.ssl_key_log_file} {QUICGO_LOG_PATH}/")
+            self.run_command(f"cp {self.ssl_key_log_file} {QUICGO_LOG_PATH}/")
 
         print("Run complete")
 
