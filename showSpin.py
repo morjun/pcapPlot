@@ -183,20 +183,22 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
         fackFrame = self.lostFrame[self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK]
         probeFrame = self.lostFrame[self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE]
 
-        spinItem = pg.PlotCurveItem(
-            self.spinFrame["time"].values.flatten(),
-            self.spinFrame["spin"].values.flatten(),
-            pen="b",
-        )
-        spinItem_dot = pg.ScatterPlotItem(
-            self.spinFrame["time"].values.flatten(),
-            self.spinFrame["spin"].values.flatten(),
-            pen="b",
-            symbol="o",
-            symbolPen="b",
-            symbolBrush="b",
-            symbolSize=5,
-        )
+        if self.spinFrame:
+            spinItem = pg.PlotCurveItem(
+                self.spinFrame["time"].values.flatten(),
+                self.spinFrame["spin"].values.flatten(),
+                pen="b",
+            )
+            spinItem_dot = pg.ScatterPlotItem(
+                self.spinFrame["time"].values.flatten(),
+                self.spinFrame["spin"].values.flatten(),
+                pen="b",
+                symbol="o",
+                symbolPen="b",
+                symbolBrush="b",
+                symbolSize=5,
+            )
+
         throughputItem = pg.PlotCurveItem(
             self.throughputFrame["Interval start"].values.flatten(),
             self.throughputFrame["All Packets"].values.flatten(),
@@ -258,8 +260,9 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             pen="k",
         )
 
-        view1.addItem(spinItem)
-        view1.addItem(spinItem_dot)
+        if self.spinFrame:
+            view1.addItem(spinItem)
+            view1.addItem(spinItem_dot)
 
         view2.addItem(throughputItem)
         view2.addItem(throughputItem_dot)
@@ -273,7 +276,8 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
 
         view6.addItem(wMaxItem)
 
-        legend.addItem(spinItem, "Spin bit")
+        if self.spinFrame:
+            legend.addItem(spinItem, "Spin bit")
         legend.addItem(lossItem0, "Lost: QUIC_TRACE_PACKET_LOSS_RACK")
         legend.addItem(lossItem1, "Lost: QUIC_TRACE_PACKET_LOSS_FACK")
         legend.addItem(lossItem2, "Lost: QUIC_TRACE_PACKET_LOSS_PROBE")

@@ -308,7 +308,8 @@ class DataLoader:
             self.thorughput_csv_convert()
         self.load_throughput()
         self.load_log()
-        self.load_spin()
+        if self.spin_supported:
+            self.load_spin()
         self.make_csv()
         return self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame, self.wMaxFrame
 
@@ -374,24 +375,16 @@ class quicGoLoader(DataLoader):
             lines = f.readlines()
             initialLogTime = 0
             for line in lines:
-                timeString = str(line.split(" ")[:2])
+                timeString = line.split(" ")[:2]
+                timeString = " ".join(timeString)
                 # timeString = re.search(r"^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})", line).group(1)
 
-                if "Handshake start" in line:
+                if "server 	Long Header{Type: Handshake" in line:
                     initialLogTime = datetime.strptime(
                         timeString, "%Y/%m/%d %H:%M:%S"
                     )  # Initial 패킷의 전송을 기준 시각으로
 
                     print(f"Initial Log time: {initialLogTime}")
-
-                    initialTime_datetime = datetime.fromtimestamp(self.initialTime)
-                    timeDelta = 0
-                    if initialTime_datetime > initialLogTime:
-                        timeDelta = initialTime_datetime - initialLogTime
-                    else:
-                        timeDelta = initialLogTime - initialTime_datetime
-                    print(f"Time delta: {timeDelta}")
-                    # log time과 pcap time의 차이
 
                 else:
                     if initialLogTime == 0:
@@ -399,11 +392,14 @@ class quicGoLoader(DataLoader):
                     logTime = (
                         datetime.strptime(timeString, "%Y/%m/%d %H:%M:%S") - initialLogTime
                     ).total_seconds()
-                    if "Lost-" in line and "Lost packet" in line:
-                        lossReason_indices = {"RACK": 0, "FACK": 1, "PROBE": 2}
-                        lossReason = lossReason_indices[line.split("Lost-")[1].split(":")[0]]
+                    if "lost packet" in line:
                         self.lostTimes = np.append(self.lostTimes, float(logTime))
-                        self.lossReasons = np.append(self.lossReasons, int(lossReason))
+                        if "time threshold" in line:
+                            self.lossReasons = np.append(self.lossReasons, QUIC_TRACE_PACKET_LOSS_RACK)
+                        elif "reordering threshold" in line:
+                            self.lossReasons = np.append(self.lossReasons, QUIC_TRACE_PACKET_LOSS_FACK)
+                        else:
+                            self.lossReasons = np.append(self.lossReasons, QUIC_TRACE_PACKET_LOSS_PROBE)
                     elif "Congestion limited: " in line and "window " in line:
                         cwnd = int(line.split("window ")[1].split(" ")[0])
                         self.cwnds = np.append(self.cwnds, int(cwnd))
