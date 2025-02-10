@@ -251,9 +251,10 @@ class QuicRunner:
         self.run_command(f"mkdir {foldername}")
         self.run_command(f"mv -f {filename_ext}.* {foldername}/")
 
-        self.run_command(
-            f"python loadSpinData.py -c -n {self.number + 1} ./{foldername} -t quic-go",
-        )
+        if self.isServer:
+            self.run_command(
+                f"python loadSpinData.py -c -n {self.number + 1} ./{foldername} -t quic-go",
+            )
 
         self.run_command(f"cp -rf {foldername} {QUICGO_LOG_PATH}/")
         self.run_command(f"rm -rf {foldername}")
