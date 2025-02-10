@@ -57,11 +57,11 @@ class QuicRunner:
                                 print("Data sent detected")
                                 connectionEstablished = True
                                 sleep(5)
-                                break
+                                return
                             # elif "Sent" in line or "sent" in line:
                 else:
                     print("Timeout: No output within the specified time.")
-                    break
+                    return
         else:
             while True:
                 ready, _, _ = select.select([process.stdout], [], [], timeout)
@@ -72,17 +72,17 @@ class QuicRunner:
                             print(line, end='')
                             if "</html>" in line:
                                 self.clientInitiated = True
-                                break
+                                return
                             elif "200 OK" in line or "Got response" in line:
                                 print("Initiation detected")
                                 self.clientInitiated = True
-                                break
+                                return
                             else:
                                 print("Not detected")
                 else:
                     print("Timeout: No output within the specified time.")
                     print(f"ClientInitiated: {self.clientInitiated}")
-                    break
+                    return
 
     def read_output_with_communicate(self, process, timeout=30):
         try:
