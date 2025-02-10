@@ -191,8 +191,8 @@ class DataLoader:
                             self.prevSpin = spin
                             if (int(packet.number) % 1000) == 0:
                                 print(f"{packet.number} packets processed")
-                        else:
-                            # print("It has spin bit but not from server")
+                        # else:
+                        #     print("It has spin bit but not from server")
             print(f"load time: {datetime.now() - loadStartTime}")
             self.spinFrame = pd.DataFrame({"time": self.times, "spin": self.spins})
             self.spinFrame.to_csv(f"{self.filename_prefix}_spin.csv", index=False)
