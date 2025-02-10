@@ -50,7 +50,7 @@ class QuicRunner:
                 if connectionEstablished:
                     ready, _, _ = select.select(read_list, [], [], timeout)
                 else:
-                    ready, _, _ = select.select(read_list, [], [],) # Infinitely wait until the client initiates
+                    ready, _, _ = select.select(read_list, [], [], None) # Infinitely wait until the client initiates
                 if ready:
                     for fd in ready:
                         line = fd.readline()
