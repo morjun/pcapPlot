@@ -43,30 +43,33 @@ class QuicRunner:
     def read_output(self, process, timeout = 30, isServer = True):
         connectionEstablished = False
         ready = None
+        read_list =  [process.stdout, process.stderr]
 
         if isServer:
             while True:
                 if connectionEstablished:
-                    ready, _, _ = select.select([process.stdout], [], [], timeout)
+                    ready, _, _ = select.select(read_list, [], [], timeout)
                 else:
-                    ready, _, _ = select.select([process.stdout], [], [],) # Infinitely wait until the client initiates
+                    ready, _, _ = select.select(read_list, [], [],) # Infinitely wait until the client initiates
                 if ready:
-                    line = process.stdout.readline()
-                    print(line, end='')
-                    if "Data sent" in line:
-                        connectionEstablished = True
-                        sleep(5)
-                        break
-                    # elif "Sent" in line or "sent" in line:
+                    for fd in ready:
+                        line = fd.readline()
+                        if line:
+                            print(line, end='')
+                            if "Data sent" in line:
+                                connectionEstablished = True
+                                sleep(5)
+                                break
+                            # elif "Sent" in line or "sent" in line:
                 else:
                     print("Timeout: No output within the specified time.")
                     break
         else:
             while True:
-                ready, _, _ = select.select([process.stdout, process.stderr], [], [], timeout)
+                ready, _, _ = select.select(read_list, [], [], timeout)
                 if ready:
                     for fd in ready:
-                        fd.readline()
+                        line = fd.readline()
                         if line:
                             print(line, end='')
                             if "</html>" in line:
