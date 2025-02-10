@@ -71,6 +71,7 @@ class QuicRunner:
                         self.clientInitiated = True
                         break
                     elif "200 OK" in line or "Got response" in line:
+                        print("Initiation detected")
                         self.clientInitiated = True
                     else:
                         print("Not detected")
