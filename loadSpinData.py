@@ -148,7 +148,7 @@ class DataLoader:
             print(f"Loaded {self.filename_prefix}.pcap(ng)")
             loadStartTime = datetime.now()
             for packet in cap:
-                print(f"processing packet {packet.number}")
+                # print(f"processing packet {packet.number}")
                 if hasattr(packet, "quic"):
                     if self.initialTime == 0:  # int
                         self.initialTime = (
@@ -167,7 +167,7 @@ class DataLoader:
                         print(f"Initial time: {self.initialTime}")
                         print(f"as datetime: {initialTime_datetime}")
                     if hasattr(packet.quic, "spin_bit"):
-                        print("It has spin bit")
+                        # print("It has spin bit")
                         if packet.udp.srcport == str(self.port):  # 서버가 전송한 패킷만
                             time = packet.sniff_time.timestamp() - self.initialTime
                             spin = packet.quic.spin_bit
@@ -192,7 +192,7 @@ class DataLoader:
                             if (int(packet.number) % 1000) == 0:
                                 print(f"{packet.number} packets processed")
                         else:
-                            print("It has spin bit but not from server")
+                            # print("It has spin bit but not from server")
             print(f"load time: {datetime.now() - loadStartTime}")
             self.spinFrame = pd.DataFrame({"time": self.times, "spin": self.spins})
             self.spinFrame.to_csv(f"{self.filename_prefix}_spin.csv", index=False)
