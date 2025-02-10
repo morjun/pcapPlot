@@ -226,6 +226,7 @@ class QuicRunner:
 
                 if self.clientInitiated:
                     self.clientInitiated = False
+                    print("OK I am breaking")
                     break
                 else: # 서버 안 열려도 리턴코드 0임 initial 몇번 보내고 포기 -> 리턴코드 0
                     print("The server is not open, Retrying in 5 sec...")
@@ -234,6 +235,7 @@ class QuicRunner:
 
         # 실행 종료 시 tshark 종료
         self.send_signal_to_process(tshark_process, signal=signal.SIGINT)
+        print("tshark 종료")
 
         if isServer:
             self.run_command(f"mv quic.log ./{filename_ext}.log")
