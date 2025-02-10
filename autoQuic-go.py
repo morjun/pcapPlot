@@ -69,7 +69,7 @@ class QuicRunner:
                     print(line, end='')
                     if "</html>" in line:
                         break
-                    elif "200 OK" in line:
+                    elif "200 OK" in line or "Got response" in line:
                         self.clientInitiated = True
                 else:
                     print("Timeout: No output within the specified time.")
@@ -168,7 +168,7 @@ class QuicRunner:
         commands = []
         if isServer:
             commands = [
-                f"tshark -i {self.interface} -f 'udp port 6121' -w {filename_ext}.pcap -o tls.keylog_file:{self.ssl_key_log_file}",
+                f"tshark -i {self.interface} -f 'udp port 6121' -w {filename_ext}.pcap -o tls.keylog_file:{self.ssl_sey_log_file}",
                 "go run .",
             ]
         else:

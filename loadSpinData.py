@@ -148,6 +148,7 @@ class DataLoader:
             print(f"Loaded {self.filename_prefix}.pcap(ng)")
             loadStartTime = datetime.now()
             for packet in cap:
+                print(f"processing packet {packet.number}")
                 if hasattr(packet, "quic"):
                     if self.initialTime == 0:  # int
                         self.initialTime = (
@@ -166,14 +167,15 @@ class DataLoader:
                         print(f"Initial time: {self.initialTime}")
                         print(f"as datetime: {initialTime_datetime}")
                     if hasattr(packet.quic, "spin_bit"):
+                        print("It has spin bit")
                         if packet.udp.srcport == str(self.port):  # 서버가 전송한 패킷만
                             time = packet.sniff_time.timestamp() - self.initialTime
                             spin = packet.quic.spin_bit
-                            if type(spin) == str:
-                                if spin == "True":
-                                    spin = 1
-                                else:  # False
-                                    spin = 0
+                            if spin == "True":
+                                spin = 1
+                            else:  # False
+                                spin = 0
+                            print(f"spin: {spin}")
                             if self.prevSpin != spin:
                                 self.numSpin += 1
                                 if self.prevTime != 0:
@@ -185,16 +187,12 @@ class DataLoader:
                                 if self.prevTime < TIME_CUT_OFF:
                                     self.prevTimeBefore20s = self.prevTime
                             self.times = np.append(self.times, float(time))
-                            try:
-                                self.spins = np.append(self.spins, int(spin))
-                            except ValueError:
-                                if spin == "True":
-                                    self.spins = np.append(self.spins, 1)
-                                else:
-                                    self.spins = np.append(self.spins, 0)
+                            self.spins = np.append(self.spins, int(spin))
                             self.prevSpin = spin
                             if (int(packet.number) % 1000) == 0:
                                 print(f"{packet.number} packets processed")
+                        else:
+                            print("It has spin bit but not from server")
             print(f"load time: {datetime.now() - loadStartTime}")
             self.spinFrame = pd.DataFrame({"time": self.times, "spin": self.spins})
             self.spinFrame.to_csv(f"{self.filename_prefix}_spin.csv", index=False)
@@ -290,6 +288,7 @@ class DataLoader:
         self.load_throughput()
         self.load_log()
         self.load_spin()
+        self.make_csv()
         return self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame, self.wMaxFrame
 
 class msquicLoader(DataLoader):
@@ -376,7 +375,7 @@ class quicGoLoader(DataLoader):
                     if initialLogTime == 0:
                         continue
                     logTime = (
-                        datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
+                        datetime.strptime(timeString, "%Y/%m/%d %H:%M:%S") - initialLogTime
                     ).total_seconds()
                     if "Lost-" in line and "Lost packet" in line:
                         lossReason_indices = {"RACK": 0, "FACK": 1, "PROBE": 2}
