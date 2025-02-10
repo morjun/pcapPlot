@@ -73,6 +73,7 @@ class QuicRunner:
                         self.clientInitiated = True
                 else:
                     print("Timeout: No output within the specified time.")
+                    print(f"ClientInitiated: {self.clientInitiated}")
                     break
 
     def read_output_with_communicate(self, process, timeout=30):
