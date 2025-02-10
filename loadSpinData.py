@@ -381,7 +381,7 @@ class quicGoLoader(DataLoader):
 
                 if "server 	Long Header{Type: Handshake" in line:
                     initialLogTime = datetime.strptime(
-                        timeString, "%Y/%m/%d %H:%M:%S"
+                        timeString, "%Y/%m/%d %H:%M:%S.%f"
                     )  # Initial 패킷의 전송을 기준 시각으로
 
                     print(f"Initial Log time: {initialLogTime}")
@@ -390,7 +390,7 @@ class quicGoLoader(DataLoader):
                     if initialLogTime == 0:
                         continue
                     logTime = (
-                        datetime.strptime(timeString, "%Y/%m/%d %H:%M:%S") - initialLogTime
+                        datetime.strptime(timeString, "%Y/%m/%d %H:%M:%S.%f") - initialLogTime
                     ).total_seconds()
                     if "lost packet" in line:
                         self.lostTimes = np.append(self.lostTimes, float(logTime))
