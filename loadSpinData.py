@@ -175,7 +175,7 @@ class DataLoader:
                                 spin = 1
                             else:  # False
                                 spin = 0
-                            print(f"spin: {spin}")
+                            # print(f"spin: {spin}")
                             if self.prevSpin != spin:
                                 self.numSpin += 1
                                 if self.prevTime != 0:
