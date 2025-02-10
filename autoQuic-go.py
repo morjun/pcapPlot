@@ -48,11 +48,13 @@ class QuicRunner:
             while True:
                 ready, _, _ = select.select([process.stdout], [], [],) # Infinitely wait until the client initiates
                 if ready:
+                    print("Ready")
                     for fd in ready:
                         line = fd.readline()
                         if line:
                             print(line, end='')
                             if "Data sent" in line:
+                                print("Data sent detected")
                                 connectionEstablished = True
                                 sleep(5)
                                 break
