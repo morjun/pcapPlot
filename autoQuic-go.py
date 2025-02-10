@@ -68,9 +68,12 @@ class QuicRunner:
                     line = process.stdout.readline()
                     print(line, end='')
                     if "</html>" in line:
+                        self.clientInitiated = True
                         break
                     elif "200 OK" in line or "Got response" in line:
                         self.clientInitiated = True
+                    else:
+                        print("Not detected")
                 else:
                     print("Timeout: No output within the specified time.")
                     print(f"ClientInitiated: {self.clientInitiated}")
