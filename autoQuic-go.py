@@ -207,7 +207,7 @@ class QuicRunner:
             # quic_go_process.stdin.write("\n")
             # quic_go_process.stdin.flush()
 
-            self.send_signal_to_process(quic_go_process, signal=signal.SIGINT)
+            self.send_signal_to_process(quic_go_process, signal=signal.SIGTERM)
 
             print("서버: Interrupt signal 전송 완료")
 
