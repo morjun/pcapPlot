@@ -65,16 +65,19 @@ class QuicRunner:
             while True:
                 ready, _, _ = select.select([process.stdout, process.stderr], [], [], timeout)
                 if ready:
-                    line = process.stdout.readline()
-                    print(line, end='')
-                    if "</html>" in line:
-                        self.clientInitiated = True
-                        break
-                    elif "200 OK" in line or "Got response" in line:
-                        print("Initiation detected")
-                        self.clientInitiated = True
-                    else:
-                        print("Not detected")
+                    for fd in ready:
+                        fd.readline()
+                        if line:
+                            print(line, end='')
+                            if "</html>" in line:
+                                self.clientInitiated = True
+                                break
+                            elif "200 OK" in line or "Got response" in line:
+                                print("Initiation detected")
+                                self.clientInitiated = True
+                                break
+                            else:
+                                print("Not detected")
                 else:
                     print("Timeout: No output within the specified time.")
                     print(f"ClientInitiated: {self.clientInitiated}")
