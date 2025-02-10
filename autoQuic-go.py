@@ -43,14 +43,13 @@ class QuicRunner:
     def read_output(self, process, timeout = 30, isServer = True):
         connectionEstablished = False
         ready = None
-        read_list =  [process.stdout.fileno(), process.stderr.fileno()]
 
         if isServer:
             while True:
                 if connectionEstablished:
-                    ready, _, _ = select.select(read_list, [], [], timeout)
+                    ready, _, _ = select.select([process.stdout, process.stderr], [], [], timeout)
                 else:
-                    ready, _, _ = select.select(read_list, [], [], None) # Infinitely wait until the client initiates
+                    ready, _, _ = select.select([process.stdout, process.stderr], [], [],) # Infinitely wait until the client initiates
                 if ready:
                     for fd in ready:
                         line = fd.readline()
@@ -66,7 +65,7 @@ class QuicRunner:
                     break
         else:
             while True:
-                ready, _, _ = select.select(read_list, [], [], timeout)
+                ready, _, _ = select.select([process.stdout, process.stderr], [], [], timeout)
                 if ready:
                     for fd in ready:
                         line = fd.readline()
