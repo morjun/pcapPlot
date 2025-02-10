@@ -51,7 +51,6 @@ class QuicRunner:
             while True:
                 ready, _, _ = select.select([process.stdout], [], [],) # Infinitely wait until the client initiates
                 if ready:
-                    print("Ready")
                     for fd in ready:
                         line = fd.readline()
                         if line:
