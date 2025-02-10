@@ -43,7 +43,7 @@ class QuicRunner:
     def read_output(self, process, timeout = 30, isServer = True):
         connectionEstablished = False
         ready = None
-        read_list =  [process.stdout, process.stderr]
+        read_list =  [process.stdout.fileno(), process.stderr.fileno()]
 
         if isServer:
             while True:
