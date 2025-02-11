@@ -389,9 +389,13 @@ class quicGoLoader(DataLoader):
                 else:
                     if initialLogTime == 0:
                         continue
-                    logTime = (
-                        datetime.strptime(timeString, "%Y/%m/%d %H:%M:%S.%f") - initialLogTime
-                    ).total_seconds()
+                    try:
+                        logTime = (
+                            datetime.strptime(timeString, "%Y/%m/%d %H:%M:%S.%f") - initialLogTime
+                        ).total_seconds()
+                    except ValueError: # 막줄에 2025/02/ 이것만 찍히는 경우가 있음 왜인지 모름
+                        print(f"Error: {line}")
+                        continue
                     if "lost packet" in line:
                         self.lostTimes = np.append(self.lostTimes, float(logTime))
                         if "time threshold" in line:
