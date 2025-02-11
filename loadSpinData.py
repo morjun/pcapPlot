@@ -126,6 +126,7 @@ class DataLoader:
                 self.throughputFrame = self.throughputFrame.drop(self.throughputFrame.index[initial_zero_index:])
                 break
 
+        print(f"throughput frame: {self.throughputFrame}")
         self.throughputFrame["All Packets"] = [
             # (x * 8 / 1000000) / self.throughputFrame["Interval start"][1]
             (x * 8) / self.throughputFrame["Interval start"][1]
