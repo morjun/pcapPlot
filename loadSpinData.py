@@ -264,31 +264,31 @@ class DataLoader:
         print(f"Pathology: {self.pathology}")
 
         with open(self.stats_path, "a", encoding="utf8") as stats_file:
-            print(f"bandwidth: {self.bandwidth} prevTime: {self.prevTime}")
-            if self.bandwidth >= 0 and self.prevTime > 0: # prevTime 0인 경우가 있음
-                print("writing to stats.csv")
-                if self.spin_supported:
-                    stats_file.write(
-                        f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {self.pathology}\n"
-                    )
-                else:
-                    stats_file.write(
-                        f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {self.pathology}\n"
-                    )
-                print("written to stats.csv")
+            # print(f"bandwidth: {self.bandwidth} prevTime: {self.prevTime}")
+            # if self.bandwidth >= 0 and self.prevTime > 0: # prevTime 0인 경우가 있음
+            print("writing to stats.csv")
+            if self.spin_supported:
+                stats_file.write(
+                    f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {spinFrequency}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {self.pathology}\n"
+                )
+            else:
+                stats_file.write(
+                    f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {self.pathology}\n"
+                )
+            print("written to stats.csv")
         
         with open(self.stats_20s_path, "a", encoding="utf8") as stats_20s_file:
-            if self.bandwidth >= 0 and self.prevTime > 0:
-                print("writing to stats_20s.csv")
-                if self.spin_supported:
-                    stats_20s_file.write(
-                        f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {spinFrequency_before_20s}, {avgThroughput_before_20s}, {numRack_before_20s}, {numFack_before_20s}, {numProbe_before_20s}, {self.pathology}\n"
-                    )
-                else:
-                    stats_20s_file.write(
-                        f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {avgThroughput_before_20s}, {numRack_before_20s}, {numFack_before_20s}, {numProbe_before_20s}, {self.pathology}\n"
-                    )
-                print("written to stats_20s.csv")
+            # if self.bandwidth >= 0 and self.prevTime > 0:
+            print("writing to stats_20s.csv")
+            if self.spin_supported:
+                stats_20s_file.write(
+                    f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {spinFrequency_before_20s}, {avgThroughput_before_20s}, {numRack_before_20s}, {numFack_before_20s}, {numProbe_before_20s}, {self.pathology}\n"
+                )
+            else:
+                stats_20s_file.write(
+                    f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {avgThroughput_before_20s}, {numRack_before_20s}, {numFack_before_20s}, {numProbe_before_20s}, {self.pathology}\n"
+                )
+            print("written to stats_20s.csv")
 
         self.lostFrame.to_csv(f"{self.filename_prefix}_lost.csv", index=False)
         self.cwndFrame.to_csv(f"{self.filename_prefix}_cwnd.csv", index=False)
