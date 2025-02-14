@@ -258,7 +258,7 @@ class DataLoader:
             fackRatio = 1
         else:
             fackRatio = 0
-        if fackRatio < 10 or avgThroughput < 5:
+        if fackRatio < 5 or avgThroughput < 5:
             self.pathology = True
 
         print(f"Pathology: {self.pathology}")

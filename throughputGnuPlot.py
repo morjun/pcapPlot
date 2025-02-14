@@ -5,7 +5,7 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(description='Generate probability distribution plots for avgThroughput.')
-    parser.add_argument("file_path", type=str, help="Path to the dataset file.")
+    parser.add_argument("file_path", type=str, help="Path to the dataset file(stats.csv).")
     args = parser.parse_args()
 
 
