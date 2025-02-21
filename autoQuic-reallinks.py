@@ -394,6 +394,8 @@ def main():
     delays = []
     if args.loss >= 0:
         lossRates = [args.loss]
+    elif args.gilbert_elliot:
+        lossRates = [0.0]
     else:
         # lossRates = range(0, 11, 1)
         lossRates = [0.5, 2.7, 4.0]
