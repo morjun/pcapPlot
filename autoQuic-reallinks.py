@@ -17,6 +17,11 @@ SSLKEYLOGFILE = "/root/sslkey.log"
 class QuicRunner:
     def __init__(self, args):
         self.args = args
+        if args.gilbert_elliot:
+            self.gilbert_p = args.gilbert_p
+            self.gilbert_r = args.gilbert_r
+            self.gilbert_h = args.gilbert_h
+            self.gilbert_k = args.gilbert_k
         self.bandwidth = args.bandwidth
         self.isServer = args.server
         self.clientInitiated = False
@@ -154,13 +159,23 @@ class QuicRunner:
 
         if isServer:
             if bandwidth > 0:
-                self.run_command(
-                    f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {bandwidth}mbit",
-                )
+                if self.args.gilbert_elliot:
+                    self.run_command(
+                        f"tc qdisc add dev eth0 root netem delay {delay}ms rate {bandwidth}mbit loss gemodel {self.gilbert_p} {self.gilbert_r} {1-self.gilbert_h} {1-self.gilbert_k}",
+                    )
+                else:
+                    self.run_command(
+                        f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {bandwidth}mbit",
+                    )
             else:
-                self.run_command(
-                    f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms",
-                )
+                if self.args.gilbert_elliot:
+                    self.run_command(
+                        f"tc qdisc add dev eth0 root netem delay {delay}ms loss gemodel {self.gilbert_p} {self.gilbert_r} {1-self.gilbert_h} {1-self.gilbert_k}",
+                    )
+                else:
+                    self.run_command(
+                        f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms",
+                    )
 
         commands = []
         if isServer:
@@ -173,7 +188,6 @@ class QuicRunner:
                 f"tshark -i eth0 -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
                 f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose",
             ]
-
 
         tshark_process = self.run_command(commands[0], detach=True)
         print(f"tshark_pid: {tshark_process.pid}")
@@ -298,6 +312,16 @@ def main():
         required=False,
     )
 
+    gilbert_elliot_group = parser.add_argument_group("Gilbert Elliot model")
+
+    gilbert_elliot_group.add_argument(
+        "-ge",
+        "--gilbert_elliot",
+        action="store_true",
+        help="Use Gilbert Elliot model",
+        required=False,
+    )
+
     # Mutually exclusive group for --server and --client
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--server', action='store_true', help="Run as server")
@@ -310,9 +334,41 @@ def main():
         help="Target IP address (required in --client mode)",
     )
 
+    gilbert_elliot_group.add_argument(
+        "-gp",
+        "--gilbert_p",
+        type=float,
+        help="Gilbert Elliot model p value",
+    )
+
+    gilbert_elliot_group.add_argument(
+        "-gr",
+        "--gilbert_r",
+        type=float,
+        help="Gilbert Elliot model r value",
+    )
+
+    gilbert_elliot_group.add_argument(
+        "-gh",
+        "--gilbert_h",
+        type=float,
+        help="Gilbert Elliot model h value",
+    )
+
+    gilbert_elliot_group.add_argument(
+        "-gk",
+        "--gilbert_k",
+        type=float,
+        help="Gilbert Elliot model k value",
+    )
+
     args = parser.parse_args()
     if args.client and not args.target:
         parser.error("--target is required in --client mode")
+    
+    if args.gilbert_elliot:
+        if not args.gilbert_p or not args.gilbert_r or not args.gilbert_h or not args.gilbert_k:
+            parser.error("Gilbert Elliot model requires --gilbert_p, --gilbert_r, --gilbert_h, and --gilbert_k")
 
     lastValues = []
     lossRates = []
