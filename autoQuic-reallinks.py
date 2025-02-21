@@ -24,7 +24,7 @@ class QuicRunner:
             self.gilbert_k = args.gilbert_k
         self.bandwidth = args.bandwidth
         self.isServer = args.server
-        self.clientInitiated = False
+        self.clientInitiated = {}
         self.current_time_unix = int(datetime.now().timestamp())
         if not self.isServer:
             self.serverIp = args.target
@@ -45,7 +45,7 @@ class QuicRunner:
 
         print(f"Signal {signal} sent to PID {pid}")
     
-    def read_output(self, process, timeout = 30, isServer = True):
+    def read_output(self, process, number = 0, timeout = 30, isServer = True):
         connectionEstablished = False
         ready = None
 
@@ -74,7 +74,7 @@ class QuicRunner:
                     if "All done" in line:
                         break
                     elif "Data received" in line:
-                        self.clientInitiated = True
+                        self.clientInitiated[number] = True
                 else:
                     print("Timeout: No output within the specified time.")
                     break
@@ -215,24 +215,34 @@ class QuicRunner:
 
         else:
             while True:
-                log_wrapper_process = self.run_command(commands[1], detach=True, input=True)
-                output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process, 30, False))
-                output_thread.start()
-                print("Output read thread started")
+                log_wrapper_processes = []
+                for i in range(self.args.flows):
+                    log_wrapper_process = self.run_command(commands[1], detach=True, input=True)
+                    output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process, i, 30, False))
 
-                output_thread.join()
-                print("Output thread joined")
+                    log_wrapper_processes.append((log_wrapper_process, output_thread))
 
-                self.run_command("echo ''", input=True)
-                log_wrapper_process.stdin.write("\n")
-                log_wrapper_process.stdin.flush()
+                    output_thread.start()
+                    print("Output read thread started")
+                
+                for log_wrapper_process, output_thread in log_wrapper_processes:
+                    output_thread.join()
+                    print("Output thread joined")
 
-                print("클라이언트: 엔터 키 전송 완료")
+                    # self.run_command("echo ''", input=True)
+                    log_wrapper_process.stdin.write("\n")
+                    log_wrapper_process.stdin.flush()
 
-                log_wrapper_process.wait()
+                    print(f"클라이언트에 엔터 키 전송 완료: {log_wrapper_process.pid}")
 
-                if self.clientInitiated:
-                    self.clientInitiated = False
+                    log_wrapper_process.wait()
+
+                initiation_count = 0
+                for item in self.clientInitiated.items():
+                    if item[1]:
+                        initiation_count += 1
+                        self.clientInitiated[item[0]] = False
+                if initiation_count == self.args.flows:
                     break
                 else: # 서버 안 열려도 리턴코드 0임 initial 몇번 보내고 포기 -> 리턴코드 0
                     print("The server is not open, Retrying in 5 sec...")
@@ -360,6 +370,15 @@ def main():
         "--gilbert_k",
         type=float,
         help="Gilbert Elliot model k value",
+    )
+
+    parser.add_argument(
+        "-f",
+        "--flows",
+        type=int,
+        default=1,
+        help="Number of flows",
+        required=False,
     )
 
     args = parser.parse_args()
