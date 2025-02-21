@@ -161,7 +161,7 @@ class QuicRunner:
             if bandwidth > 0:
                 if self.args.gilbert_elliot:
                     self.run_command(
-                        f"tc qdisc add dev eth0 root netem delay {delay}ms rate {bandwidth}mbit loss gemodel {self.gilbert_p} {self.gilbert_r} {1-self.gilbert_h} {1-self.gilbert_k}",
+                        f"tc qdisc add dev eth0 root netem delay {delay}ms rate {bandwidth}mbit loss gemodel {self.gilbert_p} {self.gilbert_r} {100.0-self.gilbert_h} {100.0-self.gilbert_k}",
                     )
                 else:
                     self.run_command(
@@ -170,7 +170,7 @@ class QuicRunner:
             else:
                 if self.args.gilbert_elliot:
                     self.run_command(
-                        f"tc qdisc add dev eth0 root netem delay {delay}ms loss gemodel {self.gilbert_p} {self.gilbert_r} {1-self.gilbert_h} {1-self.gilbert_k}",
+                        f"tc qdisc add dev eth0 root netem delay {delay}ms loss gemodel {self.gilbert_p} {self.gilbert_r} {100.0-self.gilbert_h} {100.0-self.gilbert_k}",
                     )
                 else:
                     self.run_command(
