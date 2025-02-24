@@ -416,6 +416,13 @@ def main():
     #         pass
 
     runner = QuicRunner(args)
+
+    
+    full_command = " ".join(["python3"] + ["autoQuic-reallinks.py"] + [f"{k} {v}" for k, v in vars(args).items()])
+    with open(f"fullCommand_{runner.current_time_unix}.txt", "w", encoding="utf-8") as f:
+        f.write(full_command)
+    runner.run_command(f"cp fullCommand_{runner.current_time_unix}.txt {MSQUIC_LOG_PATH}/")
+
     for i in range(args.number):
         print(f"Running test number {i+1}")
         runner.number = i
