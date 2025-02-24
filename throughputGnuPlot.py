@@ -30,8 +30,8 @@ def main():
         gnuplot_script = f"""
         set terminal png size 800,600
         set output 'distribution_{lossRate}_{bandwidth}_{delay}.png'
-        set title 'Probability Distribution of avgThroughput (lossRate={lossRate}, bandwidth={bandwidth}, delay={delay})'
-        set xlabel 'avgThroughput'
+        set title 'Probability Distribution of avgThroughput(Mbps) (lossRate={lossRate}%, bandwidth={bandwidth}Mbps, delay={delay}ms)'
+        set xlabel 'avgThroughput(Mbps)'
         set ylabel 'Probability Density'
         bin_width = 0.5
         bin(x, width) = width * floor(x / width) + width / 2.0
