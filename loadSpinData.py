@@ -347,6 +347,11 @@ class msquicLoader(DataLoader):
                     logTime = (
                         datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
                     ).total_seconds()
+
+                    if logTime < initialLogTime:
+                        # add 12 hours
+                        logTime += 43200
+
                     if "Lost: " in line and "[conn]" in line:
                         lossReason = int(line.split("Lost: ")[1].split(" ")[0])
                         self.lostTimes = np.append(self.lostTimes, float(logTime))
