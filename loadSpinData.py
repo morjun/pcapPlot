@@ -344,11 +344,12 @@ class msquicLoader(DataLoader):
                 else:
                     if initialLogTime == 0:
                         continue
+                    logTimeStamp = datetime.strptime(timeString, "%H:%M:%S.%f")
                     logTime = (
-                        datetime.strptime(timeString, "%H:%M:%S.%f") - initialLogTime
+                        logTimeStamp - initialLogTime
                     ).total_seconds()
 
-                    if logTime < initialLogTime:
+                    if logTimeStamp < initialLogTime:
                         # add 12 hours
                         logTime += 43200
 
