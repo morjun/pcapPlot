@@ -20,7 +20,7 @@ def main():
         set output "{output_path}"
         set datafile separator "," 
         
-        set title "Loss Detection; {args.title}"
+        set title "{args.title}"
         set xlabel "time (sec.)"
         set ylabel ""
         set xtics 10
