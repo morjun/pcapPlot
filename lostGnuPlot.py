@@ -26,7 +26,7 @@ def main():
         set ytics nomirror
 
         # Define the plot styles
-        set style line 1 lc rgb 'purple' pt 7 ps 1.5   # PROBE, FACK, RACK color and point styles
+        set style line 1 lc rgb 'purple' pt "+" ps 1.5   # PROBE, FACK, RACK color and point styles
 
         # Time and loss data; 
         # plot loss column where 0 corresponds to RACK, 1 to FACK, and 2 to PROBE
