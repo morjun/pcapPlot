@@ -31,8 +31,14 @@ def main():
         # Time and loss data; 
         # plot loss column where 0 corresponds to RACK, 1 to FACK, and 2 to PROBE
 
+        # Set y-axis range (adjust the values as needed)
+        set yrange [-0.5:2.5]
+
+        # Function to draw a vertical tick mark
+        tick(x, y) = (y - 0.1):(y + 0.1)
+
         set ytics ("RACK" 0, "FACK" 1, "PROBE" 2)
-        plot "{csv_path}" using 1:2 with points linestyle 1 title 'Loss'
+        plot "{csv_path}" using 1:(tick($2, $2)) with points linestyle 1 title 'Loss'
 
         # plot "{csv_path}" using 1:($2==0 ? 1/0 : 1/1) with points linestyle 1 title 'RACK', \
         #     "{csv_path}" using 1:($2==1 ? 1/0 : 1/1) with points linestyle 1 title 'FACK', \
