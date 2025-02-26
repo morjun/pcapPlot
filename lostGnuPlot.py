@@ -21,7 +21,7 @@ def main():
         
         set title "Loss Detection"
         set xlabel "time (sec.)"
-        set ylabel "Signals"
+        set ylabel ""
         set xtics 10
         set ytics nomirror
 
@@ -30,9 +30,13 @@ def main():
 
         # Time and loss data; 
         # plot loss column where 0 corresponds to RACK, 1 to FACK, and 2 to PROBE
-        plot "{csv_path}" using 1:($2==0 ? 1/0 : 1/1) with points linestyle 1 title 'RACK', \
-            "{csv_path}" using 1:($2==1 ? 1/0 : 1/1) with points linestyle 1 title 'FACK', \
-            "{csv_path}" using 1:($2==2 ? 1/0 : 1/1) with points linestyle 1 title 'PROBE'
+
+        set ytics ("RACK" 0, "FACK" 1, "PROBE" 2)
+        plot "{csv_path}" using 1:2 with points linestyle 1 title 'Loss'
+
+        # plot "{csv_path}" using 1:($2==0 ? 1/0 : 1/1) with points linestyle 1 title 'RACK', \
+        #     "{csv_path}" using 1:($2==1 ? 1/0 : 1/1) with points linestyle 1 title 'FACK', \
+        #     "{csv_path}" using 1:($2==2 ? 1/0 : 1/1) with points linestyle 1 title 'PROBE'
     """
 
     # Save Gnuplot script to a file
