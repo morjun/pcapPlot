@@ -35,7 +35,7 @@ def main():
         set yrange [-0.5:2.5]
 
         set ytics ("RACK" 0, "FACK" 1, "PROBE" 2)
-        plot "{csv_path}" using 1:2 with points linestyle 1 title 'Loss'
+        plot "{csv_path}" using 1:2:1 with points linestyle 1 title 'Loss'
 
         # plot "{csv_path}" using 1:($2==0 ? 1/0 : 1/1):1 with points linestyle 1 title 'RACK', \
         #     "{csv_path}" using 1:($2==1 ? 1/0 : 1/1):1 with points linestyle 1 title 'FACK', \
