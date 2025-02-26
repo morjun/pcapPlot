@@ -47,8 +47,8 @@ def main():
         subprocess.run(['gnuplot', script_file])
 
         # Optionally remove temporary files
-        # os.remove(temp_file)
-        # os.remove(script_file)
+        os.remove(temp_file)
+        os.remove(script_file)
 
     print("Plots have been generated for each group.")
 
