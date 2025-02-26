@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import subprocess
 import argparse
+import os
 
 def main():
     parser = argparse.ArgumentParser(description='Generate probability distribution plots for avgThroughput.')
