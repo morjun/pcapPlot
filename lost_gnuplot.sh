@@ -4,6 +4,8 @@
 INPUT_FILE=$1
 OUTPUT_FILE=$2
 
+echo $INPUT_FILE
+echo $OUTPUT_FILE
 # Gnuplot 스크립트 실행
 gnuplot <<- EOF
     set terminal pngcairo size 800,600
