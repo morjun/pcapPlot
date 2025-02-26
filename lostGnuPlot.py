@@ -8,6 +8,7 @@ def main():
     parser = argparse.ArgumentParser(description='Generate lost packet detection plots.')
     parser.add_argument("csv_path", type=str, help="Path to the lost dataset file(l*b*d*_lost.csv).")
     parser.add_argument("-o", "--output", type=str, help="Path to the output file.")
+    parser.add_argument("-t", "--title", type=str, help="Title of the plot.")
     args = parser.parse_args()
 
     output_path = args.output
@@ -19,7 +20,7 @@ def main():
         set output "{output_path}"
         set datafile separator "," 
         
-        set title "Loss Detection"
+        set title "Loss Detection; {args.title}"
         set xlabel "time (sec.)"
         set ylabel ""
         set xtics 10
