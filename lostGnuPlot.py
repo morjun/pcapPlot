@@ -35,7 +35,7 @@ def main():
         set yrange [-0.5:2.5]
 
         # Function to draw a vertical tick mark
-        tick(x, y) = (y - 0.1):(y + 0.1)
+        tick(x, y) = sprintf("%f %f\n%f %f", x, y - 0.1, x, y + 0.1)
 
         set ytics ("RACK" 0, "FACK" 1, "PROBE" 2)
         plot "{csv_path}" using 1:(tick($2, $2)) with points linestyle 1 title 'Loss'
