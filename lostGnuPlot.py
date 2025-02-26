@@ -17,6 +17,7 @@ def main():
     gnuplot_script = f"""
         set terminal png size 800,600
         set output "{output_path}"
+        set datafile separator "," 
         
         set title "Loss Detection"
         set xlabel "time (sec.)"
