@@ -37,9 +37,9 @@ def main():
         set ytics ("RACK" 0, "FACK" 1, "PROBE" 2)
         plot "{csv_path}" using 1:2 with points linestyle 1 title 'Loss'
 
-        # plot "{csv_path}" using 1:($2==0 ? 1/0 : 1/1) with points linestyle 1 title 'RACK', \
-        #     "{csv_path}" using 1:($2==1 ? 1/0 : 1/1) with points linestyle 1 title 'FACK', \
-        #     "{csv_path}" using 1:($2==2 ? 1/0 : 1/1) with points linestyle 1 title 'PROBE'
+        # plot "{csv_path}" using 1:($2==0 ? 1/0 : 1/1):1 with points linestyle 1 title 'RACK', \
+        #     "{csv_path}" using 1:($2==1 ? 1/0 : 1/1):1 with points linestyle 1 title 'FACK', \
+        #     "{csv_path}" using 1:($2==2 ? 1/0 : 1/1):1 with points linestyle 1 title 'PROBE'
     """
 
     # Save Gnuplot script to a file
