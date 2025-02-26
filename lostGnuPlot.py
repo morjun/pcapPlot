@@ -32,7 +32,7 @@ def main():
         # plot loss column where 0 corresponds to RACK, 1 to FACK, and 2 to PROBE
 
         # Set y-axis range (adjust the values as needed)
-        set yrange [-0.5:2.5]
+        set yrange [0:2]
 
         set ytics ("RACK" 0, "FACK" 1, "PROBE" 2)
         plot "{csv_path}" using 1:2 with points pt "+" title 'Loss'
