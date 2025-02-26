@@ -15,7 +15,7 @@ def main():
 
     # Generate Gnuplot script
     gnuplot_script = f"""
-        set terminal png size 800,600
+        set terminal png size 800,300
         set output "{output_path}"
         set datafile separator "," 
         
