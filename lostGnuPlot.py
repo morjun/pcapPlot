@@ -15,7 +15,7 @@ def main():
 
     # Generate Gnuplot script
     gnuplot_script = f"""
-        set terminal pngcairo size 800,600
+        set terminal png size 800,600
         set output "{output_path}"
         
         set title "Loss Detection"
