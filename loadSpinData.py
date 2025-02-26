@@ -137,6 +137,11 @@ class DataLoader:
         return
     
     def load_spin(self):
+        if self.args.reprocess:
+            try:
+                os.remove(f"{self.filename_prefix}_spin.csv")
+            except FileNotFoundError:
+                pass
         try:
             self.spinFrame = pd.read_csv(f"{self.filename_prefix}_spin.csv")
             print(f"Loaded {self.filename_prefix}_spin.csv")
@@ -448,6 +453,14 @@ def main():
         default="msquic",
         help="Type of the server",
         required=False,
+    )
+
+    parser.add_argument(
+        "-r",
+        "--reprocess",
+        action="store_true",
+        help="Reprocess the data",
+        default=False,
     )
 
     args = parser.parse_args()
