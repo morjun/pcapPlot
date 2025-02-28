@@ -122,7 +122,7 @@ class DataLoader:
             else:
                 zero_count = 0
                 initial_zero_index = None
-            if zero_count > 50:
+            if zero_count > 50 and row[0] > 100:
                 self.throughputFrame = self.throughputFrame.drop(self.throughputFrame.index[initial_zero_index:])
                 break
 
