@@ -178,7 +178,7 @@ class DataLoader:
                         if packet.udp.srcport == str(self.port):  # 서버가 전송한 패킷만
                             time = packet.sniff_time.timestamp() - self.initialTime
                             spin = packet.quic.spin_bit
-                            print(f"spin: {spin}")
+                            # print(f"spin: {spin}")
                             if self.prevSpin != spin:
                                 self.numSpin += 1
                                 if self.prevTime != 0:
