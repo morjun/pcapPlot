@@ -91,8 +91,12 @@ class QuicRunner:
             # process.terminate()  # Optional: terminate the process
 
     def run_command(
-        self, command, shell=False, cwd=self.msquic_path, detach=False, input=False
+        self, command, cwd=None, shell=False, detach=False, input=False
     ):
+
+        if cwd is None:
+            cwd = self.msquic_path
+
         print(f"명령 입력: {command}")
         os.chdir(cwd)
         args = shlex.split(command)
