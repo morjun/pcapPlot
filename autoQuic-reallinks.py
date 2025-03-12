@@ -19,6 +19,7 @@ SSLKEYLOGFILE = f"{HOME_DIR}/sslkey.log"
 class QuicRunner:
     def __init__(self, args):
         self.args = args
+        self.msquic_path = args.path
         if args.gilbert_elliot:
             self.gilbert_p = args.gilbert_p
             self.gilbert_r = args.gilbert_r
@@ -90,7 +91,7 @@ class QuicRunner:
             # process.terminate()  # Optional: terminate the process
 
     def run_command(
-        self, command, shell=False, cwd=MSQUIC_PATH, detach=False, input=False
+        self, command, shell=False, cwd=self.msquic_path, detach=False, input=False
     ):
         print(f"명령 입력: {command}")
         os.chdir(cwd)
@@ -380,6 +381,15 @@ def main():
         type=int,
         default=1,
         help="Number of flows",
+        required=False,
+    )
+
+    parser.add_argument(
+        "-p",
+        "--path",
+        type=str,
+        default=MSQUIC_PATH,
+        help="Path to msquic",
         required=False,
     )
 
