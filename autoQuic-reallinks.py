@@ -8,10 +8,12 @@ import argparse
 import glob
 import select
 from datetime import datetime
+from pathlib import Path
 
+HOME_DIR = Path.home()
 MSQUIC_LOG_PATH = "/msquic_logs"
-MSQUIC_PATH = "/root/network/quic/msquic"
-SSLKEYLOGFILE = "/root/sslkey.log"
+MSQUIC_PATH = f"{HOME_DIR}/network/quic/msquic"
+SSLKEYLOGFILE = f"{HOME_DIR}/sslkey.log"
 
 
 class QuicRunner:
