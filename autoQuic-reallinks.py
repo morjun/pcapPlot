@@ -20,6 +20,7 @@ class QuicRunner:
     def __init__(self, args):
         self.args = args
         self.msquic_path = args.path
+        self.interface = args.interface
         if args.gilbert_elliot:
             self.gilbert_p = args.gilbert_p
             self.gilbert_r = args.gilbert_r
@@ -162,37 +163,37 @@ class QuicRunner:
         self.run_command("rm l*b*d*.csv")
         self.run_command("rm -rf l*b*d*/")
 
-        self.run_command("tc qdisc del dev eth0 root netem")
+        self.run_command(f"tc qdisc del dev {self.interface} root netem")
 
         if isServer:
             if bandwidth > 0:
                 if self.args.gilbert_elliot:
                     self.run_command(
-                        f"tc qdisc add dev eth0 root netem delay {delay}ms rate {bandwidth}mbit loss gemodel {self.gilbert_p} {self.gilbert_r} {100.0-self.gilbert_h} {100.0-self.gilbert_k}",
+                        f"tc qdisc add dev {self.interface} root netem delay {delay}ms rate {bandwidth}mbit loss gemodel {self.gilbert_p} {self.gilbert_r} {100.0-self.gilbert_h} {100.0-self.gilbert_k}",
                     )
                 else:
                     self.run_command(
-                        f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms rate {bandwidth}mbit",
+                        f"tc qdisc add dev {self.interface} root netem loss {lossRate}% delay {delay}ms rate {bandwidth}mbit",
                     )
             else:
                 if self.args.gilbert_elliot:
                     self.run_command(
-                        f"tc qdisc add dev eth0 root netem delay {delay}ms loss gemodel {self.gilbert_p} {self.gilbert_r} {100.0-self.gilbert_h} {100.0-self.gilbert_k}",
+                        f"tc qdisc add dev {self.interface} root netem delay {delay}ms loss gemodel {self.gilbert_p} {self.gilbert_r} {100.0-self.gilbert_h} {100.0-self.gilbert_k}",
                     )
                 else:
                     self.run_command(
-                        f"tc qdisc add dev eth0 root netem loss {lossRate}% delay {delay}ms",
+                        f"tc qdisc add dev {self.interface} root netem loss {lossRate}% delay {delay}ms",
                     )
 
         commands = []
         if isServer:
             commands = [
-                f"tshark -i eth0 -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
+                f"tshark -i {self.interface} -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
                 "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
             ]
         else:
             commands = [
-                f"tshark -i eth0 -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
+                f"tshark -i {self.interface} -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
                 f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose",
             ]
 
@@ -279,7 +280,7 @@ class QuicRunner:
         self.run_command(f"rm -rf {foldername}")
         self.run_command("rm -rf msquic_lttng0")
 
-        self.run_command("tc qdisc del dev eth0 root")
+        self.run_command(f"tc qdisc del dev {self.interface} root")
 
         if not isServer:
             self.run_command(f"cp {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
@@ -317,6 +318,15 @@ def main():
         type=int,
         default=1,
         help="QUIC Server & Client pair instance number",
+        required=False,
+    )
+
+    parser.add_argument(
+        "-if",
+        "--interface",
+        type=str,
+        default="eth0",
+        help="Network interface",
         required=False,
     )
 
