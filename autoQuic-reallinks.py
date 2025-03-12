@@ -197,6 +197,7 @@ class QuicRunner:
                 f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose",
             ]
 
+        self.run_command(f"touch {filename_ext}.pcap") # Create the file first in order to prevent permission denied error
         tshark_process = self.run_command(commands[0], detach=True)
         print(f"tshark_pid: {tshark_process.pid}")
 
