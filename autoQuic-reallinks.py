@@ -291,7 +291,7 @@ class QuicRunner:
 
 def main():
 
-    parser = argparse.ArgumentParser(description="Run Quic")
+    parser = argparse.ArgumentParser(description="Run Quic with msquic. If loss rate or delay is not specified, the script will run for several sample values.")
 
     parser.add_argument(
         "-l",
