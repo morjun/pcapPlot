@@ -26,6 +26,10 @@ def main():
         set xtics 10
         set ytics nomirror
 
+        # --- 그리드 ---
+        # 그래프 배경에 그리드(격자) 표시
+        set grid
+
         # Define the plot styles
         set style line 1 lc rgb 'purple' pt "+" ps 1.5   # PROBE, FACK, RACK color and point styles
 
