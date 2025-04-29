@@ -183,7 +183,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
         fackFrame = self.lostFrame[self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_FACK]
         probeFrame = self.lostFrame[self.lostFrame["loss"] == QUIC_TRACE_PACKET_LOSS_PROBE]
 
-        if self.spinFrame:
+        if self.spinFrame is not None:
             spinItem = pg.PlotCurveItem(
                 self.spinFrame["time"].values.flatten(),
                 self.spinFrame["spin"].values.flatten(),
@@ -260,7 +260,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             pen="k",
         )
 
-        if self.spinFrame:
+        if self.spinFrame is not None:
             view1.addItem(spinItem)
             view1.addItem(spinItem_dot)
 
@@ -276,7 +276,7 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
 
         view6.addItem(wMaxItem)
 
-        if self.spinFrame:
+        if self.spinFrame is not None:
             legend.addItem(spinItem, "Spin bit")
         legend.addItem(lossItem0, "Lost: QUIC_TRACE_PACKET_LOSS_RACK")
         legend.addItem(lossItem1, "Lost: QUIC_TRACE_PACKET_LOSS_FACK")
@@ -376,6 +376,15 @@ def main():
         type=str,
         default="msquic",
         help="Type of log file (msquic or quic-go)",
+        required=False,
+    )
+
+    parser.add_argument (
+        "-r",
+        "--reprocess",
+        action="store_true",
+        help="Reprocess the log file",
+        default=False,
         required=False,
     )
 

@@ -33,7 +33,7 @@ def main():
         # --- 그래프 제목 및 축 레이블 ---
         # set title "네트워크 처리량 변화" # 그래프 전체 제목 (필요한 경우 주석 해제)
         set xlabel "time (sec.)"          # x축 레이블
-        set ylabel "throughput (Mbps)"     # y축 레이블
+        set ylabel "cwnd (KBytes)"     # y축 레이블
 
         # --- 축 범위 및 눈금 ---
         # x축 범위 설정 (데이터에 맞게 자동 설정하려면 주석 처리)
@@ -58,19 +58,19 @@ def main():
         # 입력: column(2) (total bytes sent)
         # 가정: 각 데이터 포인트는 1초 간격(interval)을 나타냄
         # 만약 시간 간격(interval)이 1초가 아니라면, 1000000.0 대신 (interval * 1000000.0)으로 수정해야 함
-        megabits_per_sec(bytes) = (bytes * 8.0) / ({interval} * 1000000.0)
+        cwnd_kb(bytes) = (bytes / 1000)
 
         set tmargin 5  # 숫자 3은 문자 높이 기준이며, 적절히 조절 (예: 4, 5)
 
         # 데이터 파일 그리기
         # 'your_data.csv' 부분을 실제 데이터 파일 이름으로 변경해야 합니다.
         # using 1: (...) : 1번 컬럼(time interval start)을 x축으로 사용하고,
-        #                  2번 컬럼(total bytes sent)을 megabits_per_sec 함수에 넣어 계산한 결과를 y축으로 사용합니다.
+        #                  2번 컬럼(total bytes sent)을 cwnd_kb 함수에 넣어 계산한 결과를 y축으로 사용합니다.
         # with lines : 선 그래프로 그립니다.
         # title '...' : 범례에 표시될 제목을 설정합니다.
         # lc rgb "green" #: 선 색상을 보라색으로 설정합니다.
-        # plot '{csv_path}' using 1:(megabits_per_sec(column(2))) with lines title 'CUBIC; normal' lc rgb "green"
-        plot '{csv_path}' using 1:(megabits_per_sec(column(2))) with lines title 'throughput' lc rgb "green"
+        # plot '{csv_path}' using 1:(cwnd_kb(column(2))) with lines title 'CUBIC; normal' lc rgb "green"
+        plot '{csv_path}' using 1:(cwnd_kb(column(2))) with lines title 'cwnd' lc rgb "red"
 
         # --- 종료 ---
         # 출력 설정을 해제 (일부 터미널에서는 필요)

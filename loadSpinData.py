@@ -135,6 +135,90 @@ class DataLoader:
     
     def load_log(self):
         return
+
+    def calc_spinFrequency(self):
+        # --- Configuration ---
+        window_size = 5.0  # seconds
+        step_size = 0.1    # seconds
+        input_filename = f"{self.filename_prefix}_spin.csv"
+        output_filename = f"{self.filename_prefix}_spinFreq.csv"
+        # ---
+
+        try:
+            # Load the data
+            df = self.spinFrame.copy() 
+
+            # Validate columns
+            if 'time' not in df.columns or 'spin' not in df.columns:
+                raise ValueError("CSV file must contain 'time' and 'spin' columns.")
+
+            # Sort by time (important for diff and windowing)
+            df = df.sort_values(by='time').reset_index(drop=True)
+
+            # Calculate spin changes (1 if change occurred, 0 otherwise)
+            df['spin_diff'] = df['spin'].diff().fillna(0)
+            df['spin_change'] = df['spin_diff'].abs().apply(lambda x: 1 if x != 0 else 0)
+
+            # --- Sliding Window Calculation ---
+            results = []
+            min_time = df['time'].min()
+            max_time = df['time'].max()
+
+            # Find the indices of spin changes for efficient lookup
+            change_indices = df.index[df['spin_change'] == 1].tolist()
+            # Get the actual times of changes as a NumPy array for faster comparison
+            change_times = df.loc[change_indices, 'time'].values
+
+            # Iterate through window start times
+            # Start from min_time, end when the window start + window_size exceeds max_time
+            current_window_start_time = min_time
+            # Adjust loop condition to ensure windows covering the last data point are potentially included
+            # The window center will be plotted, so we need windows whose centers are meaningful
+            while current_window_start_time <= max_time: # Iterate as long as the window can start within the data range
+
+                window_end_time = current_window_start_time + window_size
+
+                # Count changes within the current window [start, end)
+                # Efficiently count changes using pre-calculated change times
+                # Find changes that are >= start_time and < end_time
+                count_in_window = np.sum((change_times >= current_window_start_time) & (change_times < window_end_time))
+
+                # Calculate rate in Hz (changes per second)
+                rate_hz = count_in_window / window_size
+
+                # Calculate the center time of the window
+                window_center_time = current_window_start_time + window_size / 2.0
+
+                # Store result
+                results.append({'time_center': window_center_time, 'change_rate_hz': rate_hz})
+
+                # Move the window start time forward
+                current_window_start_time += step_size
+                # Handle potential floating point inaccuracies by rounding slightly if needed
+                current_window_start_time = round(current_window_start_time, 6) # Adjust precision as needed
+
+            # Convert results to DataFrame
+            output_df = pd.DataFrame(results)
+
+            # Remove potential duplicate times if any (unlikely with rounding but safe)
+            output_df = output_df.drop_duplicates(subset=['time_center'])
+
+            # Save the results
+            if not output_df.empty:
+                output_df.to_csv(output_filename, sep=',', index=False, header=False, float_format='%.6f')
+                print(f"Sliding window analysis complete. Results saved to '{output_filename}'.")
+                print("\nData preview:")
+                print(output_df.head())
+            else:
+                print("No results generated. Check data range and window/step sizes.")
+
+
+        except FileNotFoundError:
+            print(f"Error: The file '{input_filename}' was not found.")
+        except ValueError as ve:
+            print(f"Data Error: {ve}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
     
     def load_spin(self):
         if self.args.reprocess:
@@ -206,8 +290,12 @@ class DataLoader:
             print(f"load time: {datetime.now() - loadStartTime}")
             self.spinFrame = pd.DataFrame({"time": self.times, "spin": self.spins})
             self.spinFrame.to_csv(f"{self.filename_prefix}_spin.csv", index=False)
+        finally:
+            self.calc_spinFrequency()
 
     def get_spin_stats(self):
+        spinFrequency = 0
+        spinFrequency_before_20s = 0
         if self.prevTime > 0: # spin handling
             print(self.prevTime, self.initialSpinTime)
             if self.prevTime != self.initialSpinTime:
@@ -308,6 +396,16 @@ class DataLoader:
         # combinedFrame = pd.merge_asof(combinedFrame, cwndFrame, on="time", direction="nearest")
         # combinedFrame.to_csv(f"{filename}_combined.csv", index=False)
     
+    def load_csv(self):
+        try:
+            self.lostFrame = pd.read_csv(f"{self.filename_prefix}_lost.csv")
+            self.cwndFrame = pd.read_csv(f"{self.filename_prefix}_cwnd.csv")
+            self.wMaxFrame = pd.read_csv(f"{self.filename_prefix}_wMax.csv")
+            return True
+        except FileNotFoundError as e:
+            print(f"File not found: {e}.")
+            return False
+    
     def load_data(self):
         self.parse_path()
         if self.args.csv:
@@ -316,7 +414,8 @@ class DataLoader:
         self.load_log()
         if self.spin_supported:
             self.load_spin()
-        self.make_csv()
+        if not self.load_csv():
+            self.make_csv()
         return self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame, self.wMaxFrame
 
 class msquicLoader(DataLoader):
@@ -326,50 +425,53 @@ class msquicLoader(DataLoader):
         self.port = 4567
     
     def load_log(self):
-        with open(f"{self.filename_prefix}.log", encoding="utf8") as f:
-            lines = f.readlines()
-            initialLogTime = 0
-            for line in lines:
-                timeString = str(line.split("]")[2].replace("[", ""))
-                # if "[S][RX][0] LH Ver:" in line and "Type:I" in line: # 감지가 안 돼.. 어째서지?
-                if "Handshake start" in line:
-                    initialLogTime = datetime.strptime(
-                        timeString, "%H:%M:%S.%f"
-                    )  # Initial 패킷의 전송을 기준 시각으로
+        try:
+            with open(f"{self.filename_prefix}.log", encoding="utf8") as f:
+                lines = f.readlines()
+                initialLogTime = 0
+                for line in lines:
+                    timeString = str(line.split("]")[2].replace("[", ""))
+                    # if "[S][RX][0] LH Ver:" in line and "Type:I" in line: # 감지가 안 돼.. 어째서지?
+                    if "Handshake start" in line:
+                        initialLogTime = datetime.strptime(
+                            timeString, "%H:%M:%S.%f"
+                        )  # Initial 패킷의 전송을 기준 시각으로
 
-                    print(f"Initial Log time: {initialLogTime}")
-                    initialTime_datetime = datetime.fromtimestamp(self.initialTime)
-                    initialTime_datetime = initialTime_datetime.replace(
-                        year=initialLogTime.year,
-                        month=initialLogTime.month,
-                        day=initialLogTime.day,
-                    )
-                    timeDelta = initialTime_datetime - initialLogTime
-                    print(f"Time delta: {timeDelta}")
-                else:
-                    if initialLogTime == 0:
-                        continue
-                    logTimeStamp = datetime.strptime(timeString, "%H:%M:%S.%f")
-                    logTime = (
-                        logTimeStamp - initialLogTime
-                    ).total_seconds()
+                        print(f"Initial Log time: {initialLogTime}")
+                        initialTime_datetime = datetime.fromtimestamp(self.initialTime)
+                        initialTime_datetime = initialTime_datetime.replace(
+                            year=initialLogTime.year,
+                            month=initialLogTime.month,
+                            day=initialLogTime.day,
+                        )
+                        timeDelta = initialTime_datetime - initialLogTime
+                        print(f"Time delta: {timeDelta}")
+                    else:
+                        if initialLogTime == 0:
+                            continue
+                        logTimeStamp = datetime.strptime(timeString, "%H:%M:%S.%f")
+                        logTime = (
+                            logTimeStamp - initialLogTime
+                        ).total_seconds()
 
-                    if logTimeStamp < initialLogTime:
-                        # add 12 hours
-                        logTime += 43200
+                        if logTimeStamp < initialLogTime:
+                            # add 12 hours
+                            logTime += 43200
 
-                    if "Lost: " in line and "[conn]" in line:
-                        lossReason = int(line.split("Lost: ")[1].split(" ")[0])
-                        self.lostTimes = np.append(self.lostTimes, float(logTime))
-                        self.lossReasons = np.append(self.lossReasons, int(lossReason))
-                    elif "OUT: " in line and "CWnd=" in line:
-                        cwnd = int(line.split("CWnd=")[1].split(" ")[0])
-                        self.cwnds = np.append(self.cwnds, int(cwnd))
-                        self.cwndTimes = np.append(self.cwndTimes, float(logTime))
-                    elif "WindowMax" in line:
-                        wMax = int(line.split("WindowMax=")[1].split(" ")[0])
-                        self.wMaxes = np.append(self.wMaxes, int(wMax))
-                        self.wMaxTimes = np.append(self.wMaxTimes, float(logTime))
+                        if "Lost: " in line and "[conn]" in line:
+                            lossReason = int(line.split("Lost: ")[1].split(" ")[0])
+                            self.lostTimes = np.append(self.lostTimes, float(logTime))
+                            self.lossReasons = np.append(self.lossReasons, int(lossReason))
+                        elif "OUT: " in line and "CWnd=" in line:
+                            cwnd = int(line.split("CWnd=")[1].split(" ")[0])
+                            self.cwnds = np.append(self.cwnds, int(cwnd))
+                            self.cwndTimes = np.append(self.cwndTimes, float(logTime))
+                        elif "WindowMax" in line:
+                            wMax = int(line.split("WindowMax=")[1].split(" ")[0])
+                            self.wMaxes = np.append(self.wMaxes, int(wMax))
+                            self.wMaxTimes = np.append(self.wMaxTimes, float(logTime))
+        except FileNotFoundError:
+            print(f"File {self.filename_prefix}.log not found.")
 
         def load_spin(self):
             if self.filename_prefix in self.file_ports:

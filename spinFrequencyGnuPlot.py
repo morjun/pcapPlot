@@ -33,7 +33,7 @@ def main():
         # --- 그래프 제목 및 축 레이블 ---
         # set title "네트워크 처리량 변화" # 그래프 전체 제목 (필요한 경우 주석 해제)
         set xlabel "time (sec.)"          # x축 레이블
-        set ylabel "throughput (Mbps)"     # y축 레이블
+        set ylabel "spin frequency (Hz)"     # y축 레이블
 
         # --- 축 범위 및 눈금 ---
         # x축 범위 설정 (데이터에 맞게 자동 설정하려면 주석 처리)
@@ -58,7 +58,6 @@ def main():
         # 입력: column(2) (total bytes sent)
         # 가정: 각 데이터 포인트는 1초 간격(interval)을 나타냄
         # 만약 시간 간격(interval)이 1초가 아니라면, 1000000.0 대신 (interval * 1000000.0)으로 수정해야 함
-        megabits_per_sec(bytes) = (bytes * 8.0) / ({interval} * 1000000.0)
 
         set tmargin 5  # 숫자 3은 문자 높이 기준이며, 적절히 조절 (예: 4, 5)
 
@@ -70,7 +69,7 @@ def main():
         # title '...' : 범례에 표시될 제목을 설정합니다.
         # lc rgb "green" #: 선 색상을 보라색으로 설정합니다.
         # plot '{csv_path}' using 1:(megabits_per_sec(column(2))) with lines title 'CUBIC; normal' lc rgb "green"
-        plot '{csv_path}' using 1:(megabits_per_sec(column(2))) with lines title 'throughput' lc rgb "green"
+        plot '{csv_path}' using 1:2 with lines title 'spin frequency' lc rgb "blue"
 
         # --- 종료 ---
         # 출력 설정을 해제 (일부 터미널에서는 필요)
