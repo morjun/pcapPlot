@@ -19,7 +19,7 @@ def main():
         # Gnuplot script to plot RACK, FACK, PROBE with different colors
 
         # Set terminal and output file
-        set terminal png size 800,300
+        set terminal png size 800,400
         set output "{output_path}" # Replace {output_path} with your desired output PNG file name
 
         # Set data file specifics
@@ -31,12 +31,12 @@ def main():
         set ylabel "" # Y-axis label is handled by ytics
 
         # Set axis ticks
-        set xtics 10
+        # set xtics 10
         set ytics nomirror
         # Define custom y-axis labels for the values 0, 1, 2
         set ytics ("RACK" 0, "FACK" 1, "PROBE" 2)
         # Set y-axis range explicitly to ensure all labels are shown
-        set yrange [-0.5:2.5] # Adjust range slightly for better visibility of points at 0 and 2
+        set yrange [-1.0:3.0] # Adjust range slightly for better visibility of points at 0 and 2
 
         # --- Grid ---
         set grid

@@ -9,7 +9,7 @@ def main():
     parser.add_argument("csv_path", type=str, help="Path to the lost dataset file(l*b*d*_lost.csv).")
     parser.add_argument("-o", "--output", type=str, help="Path to the output file.")
     parser.add_argument("-t", "--title", type=str, help="Title of the plot.")
-    parser.add_argument("-i", "--interval", type=int, default=0.1, help="Interval for throughput calculation in seconds.")
+    parser.add_argument("-i", "--interval", type=float, default=0.1, help="Interval for throughput calculation in seconds.")
     args = parser.parse_args()
 
     output_path = args.output
@@ -31,7 +31,7 @@ def main():
         set datafile separator ","
 
         # --- 그래프 제목 및 축 레이블 ---
-        # set title "네트워크 처리량 변화" # 그래프 전체 제목 (필요한 경우 주석 해제)
+        set title "{args.title}" # 그래프 전체 제목 (필요한 경우 주석 해제)
         set xlabel "time (sec.)"          # x축 레이블
         set ylabel "spin frequency (Hz)"     # y축 레이블
 

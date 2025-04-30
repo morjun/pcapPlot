@@ -5,16 +5,14 @@ import argparse
 import os
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate lost packet detection plots.')
-    parser.add_argument("csv_path", type=str, help="Path to the lost dataset file(l*b*d*_lost.csv).")
+    parser = argparse.ArgumentParser(description='Generate spin bit plots.')
+    parser.add_argument("csv_path", type=str, help="Path to the lost dataset file(l*b*d*_spin.csv).")
     parser.add_argument("-o", "--output", type=str, help="Path to the output file.")
     parser.add_argument("-t", "--title", type=str, help="Title of the plot.")
-    parser.add_argument("-i", "--interval", type=int, default=0.1, help="Interval for throughput calculation in seconds.")
     args = parser.parse_args()
 
     output_path = args.output
     csv_path = args.csv_path
-    interval = args.interval
 
     # Generate Gnuplot script
     gnuplot_script = f"""
@@ -33,13 +31,13 @@ def main():
         # --- 그래프 제목 및 축 레이블 ---
         set title "{args.title}" # 그래프 전체 제목 (필요한 경우 주석 해제)
         set xlabel "time (sec.)"          # x축 레이블
-        set ylabel "throughput (Mbps)"     # y축 레이블
+        set ylabel "spin bit"     # y축 레이블
 
         # --- 축 범위 및 눈금 ---
         # x축 범위 설정 (데이터에 맞게 자동 설정하려면 주석 처리)
         # set xr [0:220]  # 예시 이미지와 유사하게 설정 (데이터에 따라 조절 필요)
         # y축 범위 설정 (데이터에 맞게 자동 설정하려면 주석 처리)
-        # set yr [0:18]   # 예시 이미지와 유사하게 설정 (데이터에 따라 조절 필요)
+        set yr [0:10]   # 예시 이미지와 유사하게 설정 (데이터에 따라 조절 필요)
 
         # 축 눈금 간격 설정 (자동 설정을 원하면 주석 처리)
         # set xtics 50
@@ -53,13 +51,6 @@ def main():
         # 범례 위치 및 스타일 설정 (그래프 안쪽, 오른쪽 상단)
         set key top right inside
 
-        # --- 데이터 처리 및 그리기 ---
-        # 처리량 계산 함수 정의 (Bytes -> Megabits/sec)
-        # 입력: column(2) (total bytes sent)
-        # 가정: 각 데이터 포인트는 1초 간격(interval)을 나타냄
-        # 만약 시간 간격(interval)이 1초가 아니라면, 1000000.0 대신 (interval * 1000000.0)으로 수정해야 함
-        megabits_per_sec(bytes) = (bytes * 8.0) / ({interval} * 1000000.0)
-
         set tmargin 5  # 숫자 3은 문자 높이 기준이며, 적절히 조절 (예: 4, 5)
 
         # 데이터 파일 그리기
@@ -70,7 +61,7 @@ def main():
         # title '...' : 범례에 표시될 제목을 설정합니다.
         # lc rgb "green" #: 선 색상을 보라색으로 설정합니다.
         # plot '{csv_path}' using 1:(megabits_per_sec(column(2))) with lines title 'CUBIC; normal' lc rgb "green"
-        plot '{csv_path}' using 1:(megabits_per_sec(column(2))) with lines title 'throughput' lc rgb "green"
+        plot '{csv_path}' using 1:2 with lines title 'spin bit' lc rgb "blue"
 
         # --- 종료 ---
         # 출력 설정을 해제 (일부 터미널에서는 필요)

@@ -31,7 +31,7 @@ def main():
         set datafile separator ","
 
         # --- 그래프 제목 및 축 레이블 ---
-        # set title "네트워크 처리량 변화" # 그래프 전체 제목 (필요한 경우 주석 해제)
+        set title "{args.title}" # 그래프 전체 제목 (필요한 경우 주석 해제)
         set xlabel "time (sec.)"          # x축 레이블
         set ylabel "cwnd (KBytes)"     # y축 레이블
 

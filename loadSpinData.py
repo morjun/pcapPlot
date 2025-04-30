@@ -138,7 +138,7 @@ class DataLoader:
 
     def calc_spinFrequency(self):
         # --- Configuration ---
-        window_size = 5.0  # seconds
+        window_size = 2.5  # seconds
         step_size = 0.1    # seconds
         input_filename = f"{self.filename_prefix}_spin.csv"
         output_filename = f"{self.filename_prefix}_spinFreq.csv"
