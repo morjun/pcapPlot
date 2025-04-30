@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 
 
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtGui
 import pyqtgraph as pg
 from loadSpinData import quicGoLoader, msquicLoader 
 
@@ -50,16 +50,26 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
         # Set window name
         self.setWindowTitle(f"{self.args.file[0]} number {self.args.number}")
 
-        self.drawGraph()
+        # self.drawGraph()
         self.drawTCGraph()
         self.show()
 
     def drawTCGraph(self):
+        font=QtGui.QFont()
+        font.setPixelSize(50)
+
         plotItem2 = pg.PlotItem()
         view5 = plotItem2.getViewBox()
         self.layoutWidget.addItem(plotItem2, 5, 1, 2, 5)
         plotItem2.setLabel("left", "Throughput", units="bps")
         plotItem2.setLabel("bottom", "CWnd", units="Bytes")
+
+        # plotItem2.getAxis("bottom").setStyle(tickFont = font)
+        # plotItem2.getAxis("left").setStyle(tickFont = font)
+        # plotItem2.getAxis("right").setStyle(tickFont = font)
+        # plotItem2.getAxis("top").setStyle(tickFont = font)
+        # plotItem2.getAxis("bottom").labelFont = font
+
         throughput2 = self.throughputFrame.rename(columns={"Interval start": "time"})
         print(throughput2)
         ctFrame = pd.merge_asof(
@@ -392,6 +402,7 @@ def main():
 
     app = QtWidgets.QApplication([])
     mainProgram = MainWindow(args)
+    mainProgram.setGeometry(10,40,1380,800)
     app.exec()
 
 if __name__ == "__main__":
