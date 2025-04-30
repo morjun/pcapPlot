@@ -57,12 +57,16 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
     def drawTCGraph(self):
         font=QtGui.QFont()
         font.setPixelSize(50)
+        black_pen = pg.mkPen(color='black', width=2)
 
         plotItem2 = pg.PlotItem()
         view5 = plotItem2.getViewBox()
         self.layoutWidget.addItem(plotItem2, 5, 1, 2, 5)
         plotItem2.setLabel("left", "Throughput", units="bps")
         plotItem2.setLabel("bottom", "CWnd", units="Bytes")
+
+        plotItem2.getAxis("bottom").setTextPen(black_pen)
+        plotItem2.getAxis("left").setTextPen(black_pen)
 
         # plotItem2.getAxis("bottom").setStyle(tickFont = font)
         # plotItem2.getAxis("left").setStyle(tickFont = font)
@@ -103,6 +107,9 @@ class MainWindow(QtWidgets.QMainWindow):  # main view
             symbol=None
         )
         view5.addItem(trend_line)
+
+        legend = plotItem2.addLegend(offset=(-30, 100), labelTextColor="black")
+        legend.addItem(trend_line, "Trend Line")
 
     def drawGraph(self):
         # self.plotGraph = pg.PlotWidget()
