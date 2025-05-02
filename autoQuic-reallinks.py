@@ -195,8 +195,7 @@ class QuicRunner:
                 "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
             ]
         else:
-            command =
-                f"./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp}"
+            command = f"./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp}"
 
         if isServer:
             self.run_command(f"touch {filename_ext}.pcap") # Create the file first in order to prevent permission denied error
