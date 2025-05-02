@@ -153,17 +153,18 @@ class QuicRunner:
         if self.number > 0:
             filename_ext += f"_{self.number + 1}"
 
-        self.run_command("rm -rf msquic_lttng*")
-        self.run_command("rm l*b*d*.pcap")
-        self.run_command("rm l*b*d*.log")
-        self.run_command("rm l*b*d*_lost.csv")
-        self.run_command("rm l*b*d*_spin.csv")
-        self.run_command("rm l*b*d*_cwnd.csv")
-        self.run_command("rm l*b*d*_wMax.csv")
-        self.run_command("rm l*b*d*.csv")
-        self.run_command("rm -rf l*b*d*/")
+        if isServer:
+            self.run_command("rm -rf msquic_lttng*")
+            self.run_command("rm l*b*d*.pcap")
+            self.run_command("rm l*b*d*.log")
+            self.run_command("rm l*b*d*_lost.csv")
+            self.run_command("rm l*b*d*_spin.csv")
+            self.run_command("rm l*b*d*_cwnd.csv")
+            self.run_command("rm l*b*d*_wMax.csv")
+            self.run_command("rm l*b*d*.csv")
+            self.run_command("rm -rf l*b*d*/")
 
-        self.run_command(f"tc qdisc del dev {self.interface} root netem")
+            self.run_command(f"tc qdisc del dev {self.interface} root netem")
 
         if isServer:
             if bandwidth > 0:
@@ -186,22 +187,22 @@ class QuicRunner:
                     )
 
         commands = []
+        command = None
+
         if isServer:
             commands = [
                 f"tshark -i {self.interface} -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
                 "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
             ]
         else:
-            commands = [
-                f"tshark -i {self.interface} -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
-                f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose",
-            ]
-
-        self.run_command(f"touch {filename_ext}.pcap") # Create the file first in order to prevent permission denied error
-        tshark_process = self.run_command(commands[0], detach=True)
-        print(f"tshark_pid: {tshark_process.pid}")
+            command =
+                f"./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp}"
 
         if isServer:
+            self.run_command(f"touch {filename_ext}.pcap") # Create the file first in order to prevent permission denied error
+            tshark_process = self.run_command(commands[0], detach=True)
+            print(f"tshark_pid: {tshark_process.pid}")
+
             log_wrapper_process = self.run_command(
                 commands[1], detach=True, input=True
             )
@@ -226,7 +227,7 @@ class QuicRunner:
             while True:
                 log_wrapper_processes = []
                 for i in range(self.args.flows):
-                    log_wrapper_process = self.run_command(commands[1], detach=True, input=True)
+                    log_wrapper_process = self.run_command(command, detach=True, input=True)
                     output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process, i, 30, False))
 
                     log_wrapper_processes.append((log_wrapper_process, output_thread))
@@ -257,31 +258,31 @@ class QuicRunner:
                     print("The server is not open, Retrying in 5 sec...")
                     sleep(5)
 
+        if isServer:
+            # 실행 종료 시 tshark 종료
+            self.send_signal_to_process(tshark_process, signal=signal.SIGINT)
 
-        # 실행 종료 시 tshark 종료
-        self.send_signal_to_process(tshark_process, signal=signal.SIGINT)
+            self.run_command(f"mv msquic_lttng0/quic.log ./{filename_ext}.log")
+            # log 파일이 정상적으로 옮겨지는 것까지는 확인 완료
 
-        self.run_command(f"mv msquic_lttng0/quic.log ./{filename_ext}.log")
-        # log 파일이 정상적으로 옮겨지는 것까지는 확인 완료
+            self.run_command(
+                f"""sh -c \'tshark -r {filename_ext}.pcap -q -z io,stat,0.1 \
+    | grep -P \"\\d+\\.?\\d*\\s+<>\\s+|Interval +\\|\" \
+    | tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
+            )
 
-        self.run_command(
-            f"""sh -c \'tshark -r {filename_ext}.pcap -q -z io,stat,0.1 \
-| grep -P \"\\d+\\.?\\d*\\s+<>\\s+|Interval +\\|\" \
-| tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
-        )
+            self.run_command(f"mkdir {foldername}")
+            self.run_command(f"mv -f {filename_ext}.* {foldername}/")
 
-        self.run_command(f"mkdir {foldername}")
-        self.run_command(f"mv -f {filename_ext}.* {foldername}/")
+            self.run_command(
+                f"python loadSpinData.py -c -n {self.number + 1} ./{foldername}",
+            )
 
-        self.run_command(
-            f"python loadSpinData.py -c -n {self.number + 1} ./{foldername}",
-        )
+            self.run_command(f"cp -rf {foldername} {MSQUIC_LOG_PATH}/")
+            self.run_command(f"rm -rf {foldername}")
+            self.run_command("rm -rf msquic_lttng0")
 
-        self.run_command(f"cp -rf {foldername} {MSQUIC_LOG_PATH}/")
-        self.run_command(f"rm -rf {foldername}")
-        self.run_command("rm -rf msquic_lttng0")
-
-        self.run_command(f"tc qdisc del dev {self.interface} root")
+            self.run_command(f"tc qdisc del dev {self.interface} root")
 
         # if not isServer:
         #     self.run_command(f"mv {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
