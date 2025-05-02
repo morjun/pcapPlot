@@ -282,8 +282,8 @@ class QuicRunner:
 
         self.run_command(f"tc qdisc del dev {self.interface} root")
 
-        if not isServer:
-            self.run_command(f"cp {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
+        # if not isServer:
+        #     self.run_command(f"cp {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
 
         print("Run complete")
 
