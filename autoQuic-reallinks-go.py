@@ -10,7 +10,8 @@ import select
 import psutil
 from datetime import datetime
 
-QUICGO_LOG_PATH = "/quicgo_logs"
+HOME_DIR = Path.home() # root 계정이면 /root임 주의
+QUICGO_LOG_PATH = f"{HOME_DIR}/network/quicgo_logs"
 
 class QuicRunner:
     def __init__(self, args):

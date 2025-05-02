@@ -10,11 +10,10 @@ import select
 from datetime import datetime
 from pathlib import Path
 
-HOME_DIR = Path.home()
-MSQUIC_LOG_PATH = "/msquic_logs"
+HOME_DIR = Path.home() # root 계정이면 /root임 주의
+MSQUIC_LOG_PATH = f"{HOME_DIR}/network/msquic_logs"
 MSQUIC_PATH = f"{HOME_DIR}/network/quic/msquic"
 SSLKEYLOGFILE = f"{HOME_DIR}/sslkey.log"
-
 
 class QuicRunner:
     def __init__(self, args):
