@@ -239,10 +239,10 @@ class QuicRunner:
                     print("Output thread joined")
 
                     # self.run_command("echo ''", input=True)
-                    log_wrapper_process.stdin.write("\n")
-                    log_wrapper_process.stdin.flush()
+                    # log_wrapper_process.stdin.write("\n")
+                    # log_wrapper_process.stdin.flush()
 
-                    print(f"클라이언트에 엔터 키 전송 완료: {log_wrapper_process.pid}")
+                    # print(f"클라이언트에 엔터 키 전송 완료: {log_wrapper_process.pid}")
 
                     log_wrapper_process.wait()
 
