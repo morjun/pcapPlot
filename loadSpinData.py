@@ -368,7 +368,7 @@ class DataLoader:
                 stats_file.write(
                     f"{self.time_datetime}, {self.index}, {self.loss}, {self.bandwidth}, {self.delay}, {avgThroughput}, {numLosses}, {numRack}, {numFack}, {numProbe}, {self.pathology}\n"
                 )
-            print("written to stats.csv")
+            print(f"written to stats.csv: {self.stats_path}")
         
         with open(self.stats_20s_path, "a", encoding="utf8") as stats_20s_file:
             # if self.bandwidth >= 0 and self.prevTime > 0:
