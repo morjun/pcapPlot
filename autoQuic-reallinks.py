@@ -20,6 +20,7 @@ class QuicRunner:
     def __init__(self, args):
         self.args = args
         self.msquic_path = args.path
+        self.script_path = os.path.dirname(os.path.abspath(__file__))
         self.interface = args.interface
         if args.gilbert_elliot:
             self.gilbert_p = args.gilbert_p
@@ -275,6 +276,7 @@ class QuicRunner:
 
             self.run_command(
                 f"python loadSpinData.py -c -n {self.number + 1} ./{foldername}",
+                cwd=self.script_path,
             )
 
             self.run_command(f"cp -rf {foldername} {MSQUIC_LOG_PATH}/")
