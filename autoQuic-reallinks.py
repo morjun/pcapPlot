@@ -275,7 +275,7 @@ class QuicRunner:
             self.run_command(f"mv -f {filename_ext}.* {foldername}/")
 
             self.run_command(
-                f"python loadSpinData.py -c -n {self.number + 1} ./{foldername}",
+                f"python loadSpinData.py -c -n {self.number + 1} {self.msquic_path}/{foldername}",
                 cwd=self.script_path,
             )
 
