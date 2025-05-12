@@ -66,8 +66,8 @@ class DataLoader:
         self.full_path = os.path.relpath(self.full_path)
         splitted_path = os.path.split(self.full_path) # ('...', 'l0b0d0_t0')
 
-        self.stats_path = os.path.join(splitted_path[0], "stats.csv") # 상위 디렉토리에 stats.csv를 저장하기 위해 경로 변경 전에 현재 경로를 저장
-        self.stats_20s_path = os.path.join(splitted_path[0], "stats_20s.csv")
+        self.stats_path = os.path.join(splitted_path[:-1], "stats.csv") # 상위 디렉토리에 stats.csv를 저장하기 위해 경로 변경 전에 현재 경로를 저장
+        self.stats_20s_path = os.path.join(splitted_path[:-1], "stats_20s.csv")
 
         arg_path_parts = splitted_path[1].split("_") # ['l0b0d0', 't0']
         self.parametric_path = arg_path_parts[0] # l0b0d0
