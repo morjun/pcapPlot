@@ -404,7 +404,7 @@ class DataLoader:
             self.wMaxFrame = pd.read_csv(f"{self.filename_prefix}_wMax.csv")
             return True
         except FileNotFoundError as e:
-            print(f"File not found: {e}.")
+            print(f"File not found: {e}. Continue to make new csv files.")
             return False
     
     def load_data(self):
@@ -415,6 +415,7 @@ class DataLoader:
         self.load_log()
         if self.spin_supported:
             self.load_spin()
+        print("Trying to load pre-saved csv files")
         if not self.load_csv():
             self.make_csv()
         return self.spinFrame, self.throughputFrame, self.lostFrame, self.cwndFrame, self.wMaxFrame
