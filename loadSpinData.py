@@ -64,10 +64,12 @@ class DataLoader:
         self.index = self.args.number # 입력: n
 
         self.full_path = os.path.relpath(self.full_path)
+        self.full_abs_path = os.path.abspath(self.full_path)
         splitted_path = os.path.split(self.full_path) # ('...', 'l0b0d0_t0')
+        splitted_abs_path = os.path.split(self.full_abs_path) # ('...', 'l0b0d0_t0')
 
-        self.stats_path = os.path.join(splitted_path, "stats.csv") # 상위 디렉토리에 stats.csv를 저장하기 위해 경로 변경 전에 현재 경로를 저장
-        self.stats_20s_path = os.path.join(splitted_path, "stats_20s.csv")
+        self.stats_path = os.path.join(splitted_abs_path[0], "stats.csv") # 상위 디렉토리에 stats.csv를 저장하기 위해 경로 변경 전에 현재 경로를 저장
+        self.stats_20s_path = os.path.join(splitted_abs_path[0], "stats_20s.csv")
 
         arg_path_parts = splitted_path[1].split("_") # ['l0b0d0', 't0']
         self.parametric_path = arg_path_parts[0] # l0b0d0
