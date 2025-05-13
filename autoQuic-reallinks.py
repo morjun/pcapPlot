@@ -246,6 +246,7 @@ class QuicRunner:
                     # print(f"클라이언트에 엔터 키 전송 완료: {log_wrapper_process.pid}")
 
                     log_wrapper_process.wait()
+                    sleep(120) # 2분 대기
 
                 initiation_count = 0
                 for item in self.clientInitiated.items():
