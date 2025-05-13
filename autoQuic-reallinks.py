@@ -253,7 +253,7 @@ class QuicRunner:
                         initiation_count += 1
                         self.clientInitiated[item[0]] = False
                 if initiation_count == self.args.flows:
-                    sleep(180) # 3분 대기
+                    sleep(360) # 6분 대기
                     break
                 else: # 서버 안 열려도 리턴코드 0임 initial 몇번 보내고 포기 -> 리턴코드 0
                     print("The server is not open, Retrying in 5 sec...")
