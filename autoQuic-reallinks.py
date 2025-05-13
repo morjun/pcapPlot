@@ -246,7 +246,6 @@ class QuicRunner:
                     # print(f"클라이언트에 엔터 키 전송 완료: {log_wrapper_process.pid}")
 
                     log_wrapper_process.wait()
-                    sleep(120) # 2분 대기
 
                 initiation_count = 0
                 for item in self.clientInitiated.items():
@@ -254,6 +253,7 @@ class QuicRunner:
                         initiation_count += 1
                         self.clientInitiated[item[0]] = False
                 if initiation_count == self.args.flows:
+                    sleep(120) # 2분 대기
                     break
                 else: # 서버 안 열려도 리턴코드 0임 initial 몇번 보내고 포기 -> 리턴코드 0
                     print("The server is not open, Retrying in 5 sec...")
