@@ -191,8 +191,10 @@ class QuicRunner:
             f"tshark -q -i {self.interface} -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
             "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
         ]
-        # command = f"./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp}"
-        command = f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose"
+
+        if not isServer:
+            # command = f"./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp}"
+            commands[1] = f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose"
 
         self.run_command(f"touch {filename_ext}.pcap") # Create the file first in order to prevent permission denied error
         tshark_process = self.run_command(commands[0], detach=True)
@@ -221,6 +223,7 @@ class QuicRunner:
             log_wrapper_process.wait()
 
         else:
+            command = commands[1]
             while True:
                 log_wrapper_processes = []
                 for i in range(self.args.flows):
