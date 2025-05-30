@@ -142,6 +142,19 @@ class QuicRunner:
                 shell=shell,
                 cwd=cwd,
             )
+    
+    def clean(self):
+        self.run_command("rm -rf msquic_lttng*")
+        self.run_command("rm l*b*d*.pcap")
+        self.run_command("rm l*b*d*.log")
+        self.run_command("rm l*b*d*_lost.csv")
+        self.run_command("rm l*b*d*_spin.csv")
+        self.run_command("rm l*b*d*_cwnd.csv")
+        self.run_command("rm l*b*d*_wMax.csv")
+        self.run_command("rm l*b*d*.csv")
+        self.run_command("rm -rf l*b*d*/")
+        if isServer:
+            self.run_command(f"tc qdisc del dev {self.interface} root netem")
 
     def runQuic(self, lossRate, delay):
         isServer = self.isServer
@@ -154,18 +167,7 @@ class QuicRunner:
         if self.number > 0:
             filename_ext += f"_{self.number + 1}"
 
-        self.run_command("rm -rf msquic_lttng*")
-        self.run_command("rm l*b*d*.pcap")
-        self.run_command("rm l*b*d*.log")
-        self.run_command("rm l*b*d*_lost.csv")
-        self.run_command("rm l*b*d*_spin.csv")
-        self.run_command("rm l*b*d*_cwnd.csv")
-        self.run_command("rm l*b*d*_wMax.csv")
-        self.run_command("rm l*b*d*.csv")
-        self.run_command("rm -rf l*b*d*/")
-
-        if isServer:
-            self.run_command(f"tc qdisc del dev {self.interface} root netem")
+        self.clean()
 
         if isServer:
             if bandwidth > 0:
@@ -258,6 +260,7 @@ class QuicRunner:
                     break
                 else: # 서버 안 열려도 리턴코드 0임 initial 몇번 보내고 포기 -> 리턴코드 0
                     print("The server is not open, Retrying in 5 sec...")
+                    self.clean()
                     sleep(5)
 
         # 실행 종료 시 tshark 종료
@@ -281,10 +284,7 @@ class QuicRunner:
         )
 
         self.run_command(f"cp -rf {foldername} {MSQUIC_LOG_PATH}/")
-        self.run_command(f"rm -rf {foldername}")
-        self.run_command("rm -rf msquic_lttng0")
-
-        self.run_command(f"tc qdisc del dev {self.interface} root")
+        self.clean()
 
         # if not isServer:
         #     self.run_command(f"mv {SSLKEYLOGFILE} {MSQUIC_LOG_PATH}/")
