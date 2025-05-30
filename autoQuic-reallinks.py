@@ -155,7 +155,7 @@ class QuicRunner:
             self.run_command("rm l*b*d*_wMax.csv")
             self.run_command("rm l*b*d*.csv")
             self.run_command("rm -rf l*b*d*/")
-            if isServer:
+            if self.isServer:
                 self.run_command(f"tc qdisc del dev {self.interface} root netem")
 
     def runQuic(self, lossRate, delay):
