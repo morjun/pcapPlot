@@ -19,6 +19,7 @@ SSLKEYLOGFILE = f"{NETWORK_PATH}/sslkey.log"
 class QuicRunner:
     def __init__(self, args):
         self.args = args
+        self.logging = args.logging
         self.msquic_path = args.path
         self.script_path = os.path.dirname(os.path.abspath(__file__))
         self.interface = args.interface
@@ -144,17 +145,18 @@ class QuicRunner:
             )
     
     def clean(self):
-        self.run_command("rm -rf msquic_lttng*")
-        self.run_command("rm l*b*d*.pcap")
-        self.run_command("rm l*b*d*.log")
-        self.run_command("rm l*b*d*_lost.csv")
-        self.run_command("rm l*b*d*_spin.csv")
-        self.run_command("rm l*b*d*_cwnd.csv")
-        self.run_command("rm l*b*d*_wMax.csv")
-        self.run_command("rm l*b*d*.csv")
-        self.run_command("rm -rf l*b*d*/")
-        if isServer:
-            self.run_command(f"tc qdisc del dev {self.interface} root netem")
+        if self.logging:
+            self.run_command("rm -rf msquic_lttng*")
+            self.run_command("rm l*b*d*.pcap")
+            self.run_command("rm l*b*d*.log")
+            self.run_command("rm l*b*d*_lost.csv")
+            self.run_command("rm l*b*d*_spin.csv")
+            self.run_command("rm l*b*d*_cwnd.csv")
+            self.run_command("rm l*b*d*_wMax.csv")
+            self.run_command("rm l*b*d*.csv")
+            self.run_command("rm -rf l*b*d*/")
+            if isServer:
+                self.run_command(f"tc qdisc del dev {self.interface} root netem")
 
     def runQuic(self, lossRate, delay):
         isServer = self.isServer
@@ -191,25 +193,32 @@ class QuicRunner:
 
         commands = [
             f"tshark -q -i {self.interface} -f 'udp port 4567' -w {filename_ext}.pcap -o tls.keylog_file:{SSLKEYLOGFILE}",
-            "./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose",
         ]
 
-        if not isServer:
-            # command = f"./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp}"
-            commands[1] = f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose"
+        tshark_process = None
 
-        self.run_command(f"touch {filename_ext}.pcap") # Create the file first in order to prevent permission denied error
-        tshark_process = self.run_command(commands[0], detach=True)
-        print(f"tshark_pid: {tshark_process.pid}")
+        if self.logging:
+            if isServer:
+                commands.append("./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key --gtest_filter=Full.Verbose")
 
+            else:
+                commands.append(f"./scripts/log_wrapper.sh ./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp} --gtest_filter=Full.Verbose")
+            self.run_command(f"touch {filename_ext}.pcap") # Create the file first in order to prevent permission denied error
+            tshark_process = self.run_command(commands[0], detach=True)
+            print(f"tshark_pid: {tshark_process.pid}")
+        else:
+            if isServer:
+                commands.append("./artifacts/bin/linux/x64_Debug_openssl/quicsample -server -cert_file:./artifacts/bin/linux/x64_Debug_openssl/cert.pem -key_file:./artifacts/bin/linux/x64_Debug_openssl/priv.key")
+            else:
+                commands.append(f"./artifacts/bin/linux/x64_Debug_openssl/quicsample -client -unsecure -target:{self.serverIp}")
         if isServer:
 
-            log_wrapper_process = self.run_command(
+            msquic_process = self.run_command(
                 commands[1], detach=True, input=True
             )
 
             # 서버: 30초동안 대기
-            output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process,))
+            output_thread = threading.Thread(target=self.read_output, args=(msquic_process,))
             output_thread.start()
             print("Output rhead thread started")
 
@@ -217,37 +226,35 @@ class QuicRunner:
             print("Output thread joined")
 
             self.run_command("echo ''", input=True)
-            log_wrapper_process.stdin.write("\n")
-            log_wrapper_process.stdin.flush()
-
+            msquic_process.stdin.write("\n")
+            msquic_process.stdin.flush()
             print("서버: 엔터 키 전송 완료")
 
-            log_wrapper_process.wait()
+            msquic_process.wait()
 
         else:
-            command = commands[1]
             while True:
-                log_wrapper_processes = []
+                process_pairs = []
                 for i in range(self.args.flows):
-                    log_wrapper_process = self.run_command(command, detach=True, input=True)
-                    output_thread = threading.Thread(target=self.read_output, args=(log_wrapper_process, i, 30, False))
+                    msquic_process = self.run_command(commands[1], detach=True, input=True)
+                    output_thread = threading.Thread(target=self.read_output, args=(msquic_process, i, 30, False))
 
-                    log_wrapper_processes.append((log_wrapper_process, output_thread))
+                    process_pairs.append((msquic_process, output_thread))
 
                     output_thread.start()
                     print("Output read thread started")
                 
-                for log_wrapper_process, output_thread in log_wrapper_processes:
+                for msquic_process, output_thread in process_pairs:
                     output_thread.join()
                     print("Output thread joined")
 
-                    self.run_command("echo ''", input=True)
-                    log_wrapper_process.stdin.write("\n")
-                    log_wrapper_process.stdin.flush()
+                    if self.logging:
+                        self.run_command("echo ''", input=True)
+                        msquic_process.stdin.write("\n")
+                        msquic_process.stdin.flush()
+                        print(f"클라이언트에 엔터 키 전송 완료: {msquic_process.pid}")
 
-                    print(f"클라이언트에 엔터 키 전송 완료: {log_wrapper_process.pid}")
-
-                    log_wrapper_process.wait()
+                    msquic_process.wait()
 
                 initiation_count = 0
                 for item in self.clientInitiated.items():
@@ -255,8 +262,10 @@ class QuicRunner:
                         initiation_count += 1
                         self.clientInitiated[item[0]] = False
                 if initiation_count == self.args.flows:
-                    # sleep(360) # 6분 대기
-                    sleep(30)
+                    if self.logging:
+                        sleep(30)
+                    else:
+                        sleep(360) # 6분 대기
                     break
                 else: # 서버 안 열려도 리턴코드 0임 initial 몇번 보내고 포기 -> 리턴코드 0
                     print("The server is not open, Retrying in 5 sec...")
@@ -264,24 +273,24 @@ class QuicRunner:
                     sleep(5)
 
         # 실행 종료 시 tshark 종료
-        self.send_signal_to_process(tshark_process, signal=signal.SIGINT)
+        if self.logging:
+            self.send_signal_to_process(tshark_process, signal=signal.SIGINT)
+            self.run_command(
+                f"""sh -c \'tshark -r {filename_ext}.pcap -q -z io,stat,0.1 \
+    | grep -P \"\\d+\\.?\\d*\\s+<>\\s+|Interval +\\|\" \
+    | tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
+            )
 
-        self.run_command(
-            f"""sh -c \'tshark -r {filename_ext}.pcap -q -z io,stat,0.1 \
-| grep -P \"\\d+\\.?\\d*\\s+<>\\s+|Interval +\\|\" \
-| tr -d \" \" | tr \"|\" \",\" | sed -E \"s/<>/,/; s/(^,|,$)//g; s/Interval/Start,Stop/g\" > {filename_ext}.csv\'""",
-        )
+            self.run_command(f"mv msquic_lttng0/quic.log ./{filename_ext}.log")
+            # log 파일이 정상적으로 옮겨지는 것까지는 확인 완료
 
-        self.run_command(f"mv msquic_lttng0/quic.log ./{filename_ext}.log")
-        # log 파일이 정상적으로 옮겨지는 것까지는 확인 완료
+            self.run_command(f"mkdir {foldername}")
+            self.run_command(f"mv -f {filename_ext}.* {foldername}/")
 
-        self.run_command(f"mkdir {foldername}")
-        self.run_command(f"mv -f {filename_ext}.* {foldername}/")
-
-        self.run_command(
-            f"python loadSpinData.py -c -n {self.number + 1} {self.msquic_path}/{foldername}",
-            cwd=self.script_path,
-        )
+            self.run_command(
+                f"python loadSpinData.py -c -n {self.number + 1} {self.msquic_path}/{foldername}",
+                cwd=self.script_path,
+            )
 
         self.run_command(f"cp -rf {foldername} {MSQUIC_LOG_PATH}/")
         self.clean()
@@ -341,6 +350,13 @@ def main():
         default=1,
         help="Number of times to run the test",
         required=False,
+    )
+
+    parser.add_argument(
+        "-log",
+        "--logging",
+        action = "store_true",
+        help = "Enable logging and packet capture"
     )
 
     gilbert_elliot_group = parser.add_argument_group("Gilbert Elliot model")
